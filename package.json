@@ -1,0 +1,10 @@
+{
+  "name": "global-classroom",
+  "version": "1.0.0",
+  "dependencies": {
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "@google/genai": "^1.33.0",
+    "firebase": "^10.12.2"
+  }
+}

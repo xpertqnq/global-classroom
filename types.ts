@@ -1,0 +1,77 @@
+export interface Language {
+  code: string;
+  name: string;
+  flag: string; // Emoji
+}
+
+export interface VisionResult {
+  originalText: string;
+  translatedText: string;
+}
+
+export enum ConnectionStatus {
+  DISCONNECTED = 'DISCONNECTED',
+  CONNECTING = 'CONNECTING',
+  CONNECTED = 'CONNECTED',
+  ERROR = 'ERROR'
+}
+
+// Conversation Item Structure
+export interface ConversationItem {
+  id: string;
+  original: string;
+  translated: string;
+  isTranslating: boolean;
+  timestamp: number;
+  audioBase64?: string; // Cache for TTS audio (in-memory)
+  audioUrl?: string; // Firebase Storage URL
+}
+
+export interface VoiceOption {
+  name: string;
+  label: string;
+  gender: 'Male' | 'Female';
+  style: string;
+}
+
+export interface TranslationMap {
+  appTitle: string;
+  subtitle: string;
+  inputLang: string;
+  outputLang: string;
+  autoPlay: string;
+  playAll: string;
+  statusListening: string;
+  statusStandby: string;
+  connectionError: string;
+  retry: string;
+  connecting: string;
+  visionButton: string;
+  visionTitle: string;
+  visionDetected: string;
+  visionTranslated: string;
+  visionRetake: string;
+  visionAnalyzing: string;
+  visionNoText: string;
+  visionFail: string;
+  visionError: string;
+  voiceLabel: string;
+  emptyHint: string;
+  // Export & Login
+  exportMenu: string;
+  exportDocs: string;
+  exportDrive: string;
+  exportClassroom: string;
+  loginRequired: string; // Generic
+  loginRequiredDrive: string; // Specific for Drive
+  loginRequiredClassroom: string; // Specific for Classroom
+  loginUnavailable: string;
+  offlineMode: string;
+  exporting: string;
+  exportSuccess: string;
+  // Classroom UI
+  selectCourse: string;
+  fetchingCourses: string;
+  noCourses: string;
+  submitTo: string;
+}

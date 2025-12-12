@@ -1,0 +1,185 @@
+import React, { useRef, useState, useEffect } from 'react';
+import { GoogleGenAI, Type } from "@google/genai";
+import { MODEL_VISION } from '../constants';
+import { VisionResult, Language, TranslationMap } from '../types';
+
+interface CameraViewProps {
+  isOpen: boolean;
+  onClose: () => void;
+  langA: Language;
+  langB: Language;
+  t: TranslationMap;
+}
+
+const CameraView: React.FC<CameraViewProps> = ({ isOpen, onClose, langA, langB, t }) => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [result, setResult] = useState<VisionResult | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      startCamera();
+    } else {
+      stopCamera();
+    }
+    return () => stopCamera();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
+
+  const startCamera = async () => {
+    try {
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' }
+      });
+      setStream(mediaStream);
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream;
+      }
+    } catch (err) {
+      console.error("Camera access failed", err);
+    }
+  };
+
+  const stopCamera = () => {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      setStream(null);
+    }
+    setResult(null);
+  };
+
+  const handleCapture = async () => {
+    if (!videoRef.current || !canvasRef.current) return;
+
+    setIsProcessing(true);
+    const context = canvasRef.current.getContext('2d');
+    if (context) {
+      canvasRef.current.width = videoRef.current.videoWidth;
+      canvasRef.current.height = videoRef.current.videoHeight;
+      context.drawImage(videoRef.current, 0, 0);
+
+      const base64Data = canvasRef.current.toDataURL('image/jpeg', 0.8).split(',')[1];
+      await analyzeImage(base64Data);
+    }
+  };
+
+  const analyzeImage = async (base64Image: string) => {
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      
+      const prompt = `
+        Analyze the text in this image.
+        Rules:
+        1. If the detected text is in ${langA.name}, translate it to ${langB.name}.
+        2. If the detected text is in ${langB.name}, translate it to ${langA.name}.
+        3. If it's a mix or another language, translate it to ${langA.name}.
+        Return the result in JSON format.
+      `;
+
+      const response = await ai.models.generateContent({
+        model: MODEL_VISION,
+        contents: {
+          parts: [
+            { inlineData: { mimeType: 'image/jpeg', data: base64Image } },
+            { text: prompt }
+          ]
+        },
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              originalText: { type: Type.STRING },
+              translatedText: { type: Type.STRING },
+            },
+            required: ["originalText", "translatedText"]
+          }
+        }
+      });
+
+      const json = JSON.parse(response.text || "{}");
+      setResult({
+        originalText: json.originalText || t.visionNoText,
+        translatedText: json.translatedText || t.visionFail
+      });
+
+    } catch (error) {
+      console.error("Vision Error:", error);
+      setResult({
+        originalText: t.visionError,
+        translatedText: t.retry
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black flex flex-col">
+      {/* Header */}
+      <div className="absolute top-0 w-full p-4 flex justify-between items-center z-10 bg-gradient-to-b from-black/50 to-transparent">
+        <button onClick={onClose} className="text-white bg-white/20 p-2 rounded-full backdrop-blur-md active:bg-white/30 transition-colors">
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+        </button>
+        <span className="text-white font-medium text-lg drop-shadow-md">{t.visionTitle}</span>
+        <div className="w-10"></div>
+      </div>
+
+      {/* Camera Preview */}
+      <div className="flex-1 relative bg-black flex items-center justify-center overflow-hidden">
+        <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
+        <canvas ref={canvasRef} className="hidden" />
+        
+        {/* Overlay Result */}
+        {result && (
+          <div className="absolute inset-x-4 top-1/4 bg-white/95 backdrop-blur-xl rounded-2xl p-6 shadow-2xl border border-gray-100 animate-in fade-in slide-in-from-bottom-10 duration-300">
+            <div className="mb-4">
+              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">{t.visionDetected}</h3>
+              <p className="text-gray-800 text-lg leading-relaxed max-h-40 overflow-y-auto">{result.originalText}</p>
+            </div>
+            <div className="w-full h-px bg-gray-200 my-4"></div>
+            <div>
+              <h3 className="text-xs font-bold text-indigo-600 uppercase tracking-wider mb-1">{t.visionTranslated}</h3>
+              <p className="text-indigo-900 text-xl font-medium leading-relaxed max-h-40 overflow-y-auto">{result.translatedText}</p>
+            </div>
+            <button 
+              onClick={() => setResult(null)}
+              className="mt-6 w-full py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-colors"
+            >
+              {t.visionRetake}
+            </button>
+          </div>
+        )}
+
+        {/* Loading */}
+        {isProcessing && (
+          <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-20">
+            <div className="flex flex-col items-center">
+              <div className="w-12 h-12 border-4 border-white/30 border-t-white rounded-full animate-spin mb-4"></div>
+              <p className="text-white font-medium text-lg">{t.visionAnalyzing}</p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Controls */}
+      {!result && (
+        <div className="h-40 bg-black flex items-center justify-center pb-8 pt-4">
+          <button 
+            onClick={handleCapture}
+            disabled={isProcessing}
+            className="w-20 h-20 rounded-full border-[5px] border-white flex items-center justify-center group active:scale-95 transition-transform"
+          >
+            <div className="w-16 h-16 bg-white rounded-full group-hover:scale-90 transition-transform shadow-inner"></div>
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default CameraView;

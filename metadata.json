@@ -1,0 +1,8 @@
+{
+  "name": "Global Classroom",
+  "description": "Real-time bidirectional interpretation and blackboard translation for multicultural education.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

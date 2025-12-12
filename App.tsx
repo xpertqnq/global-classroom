@@ -3,7 +3,6 @@ import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
 import { User, onAuthStateChanged } from 'firebase/auth';
 import { 
   getAppAuth, 
-  signInWithGoogle, 
   logOut, 
   signInAsGuest 
 } from './utils/firebase';
@@ -12,12 +11,20 @@ import {
   backupToDrive, 
   exportToDocs, 
   downloadTranscriptLocally, 
-  downloadBackupLocally,
   listCourses,
   createCourseWork
 } from './utils/googleWorkspace';
 import { Language, ConnectionStatus, VoiceOption, ConversationItem } from './types';
-import { SUPPORTED_LANGUAGES, MODEL_LIVE, MODEL_TRANSLATE, MODEL_TTS, TRANSLATIONS, VOICE_OPTIONS } from './constants';
+import { 
+  SUPPORTED_LANGUAGES, 
+  MODEL_LIVE, 
+  MODEL_TRANSLATE, 
+  MODEL_TTS, 
+  TRANSLATIONS, 
+  VOICE_OPTIONS,
+  GOOGLE_CLIENT_ID,
+  GOOGLE_SCOPES
+} from './constants';
 import { createPcmBlob, decodeAudioData, base64ToUint8Array } from './utils/audioUtils';
 import Visualizer from './components/Visualizer';
 import CameraView from './components/CameraView';
@@ -62,6 +69,16 @@ const ClassroomIcon = () => (
   </svg>
 );
 
+// Google Logo for Login Button
+const GoogleLogo = () => (
+  <svg className="w-5 h-5" viewBox="0 0 24 24">
+    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.26.81-.58z" fill="#FBBC05"/>
+    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+  </svg>
+);
+
 export default function App() {
   // --- UI Settings ---
   const [uiLangCode, setUiLangCode] = useState('ko');
@@ -80,13 +97,15 @@ export default function App() {
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
 
   // --- Auth & Data ---
-  const [user, setUser] = useState<User | null>(null);
+  // We use `any` here to support both Firebase User (Guest) and our custom Google User object
+  const [user, setUser] = useState<User | any | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null); 
   const [history, setHistory] = useState<ConversationItem[]>([]);
   const [currentTurnText, setCurrentTurnText] = useState('');
   const historyRef = useRef<HTMLDivElement>(null);
 
-  // --- Export & Classroom State ---
+  // --- Modals State ---
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isClassroomModalOpen, setIsClassroomModalOpen] = useState(false);
@@ -101,38 +120,89 @@ export default function App() {
   const streamRef = useRef<MediaStream | null>(null);
   const sessionPromiseRef = useRef<Promise<any> | null>(null);
   const processorRef = useRef<ScriptProcessorNode | null>(null);
+  const tokenClientRef = useRef<any>(null); // GIS Token Client
 
-  // 1. Initialize Anonymous Auth on Mount if not logged in
+  // 1. Initialize Auth on Mount
   useEffect(() => {
-    const initAuth = async () => {
+    // A. Guest Auth (Firebase)
+    const initGuestAuth = async () => {
       const auth = getAppAuth();
       if (!auth.currentUser) {
         try {
-          await signInAsGuest();
+          // If no user is logged in (and not Google logged in via memory state), try guest
+          if (!user) {
+             await signInAsGuest();
+          }
         } catch (error) {
           console.error('Anonymous sign in failed:', error);
         }
       }
     };
-    const timer = setTimeout(initAuth, 500); 
-    return () => clearTimeout(timer);
-  }, []);
+    const timer = setTimeout(initGuestAuth, 500); 
+
+    // B. Initialize GIS Client
+    // We check if google global is available (loaded via script in index.html)
+    const checkGoogle = setInterval(() => {
+       if (typeof google !== 'undefined' && google.accounts && google.accounts.oauth2) {
+          clearInterval(checkGoogle);
+          tokenClientRef.current = google.accounts.oauth2.initTokenClient({
+            client_id: GOOGLE_CLIENT_ID,
+            scope: GOOGLE_SCOPES,
+            callback: async (tokenResponse: any) => {
+              if (tokenResponse && tokenResponse.access_token) {
+                 setAccessToken(tokenResponse.access_token);
+                 // Fetch User Profile
+                 try {
+                   const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                      headers: { 'Authorization': `Bearer ${tokenResponse.access_token}` }
+                   });
+                   const profile = await res.json();
+                   // Construct a user object compatible with our UI
+                   const googleUser = {
+                      uid: profile.sub,
+                      displayName: profile.name,
+                      email: profile.email,
+                      photoURL: profile.picture,
+                      isAnonymous: false,
+                      providerId: 'google.com'
+                   };
+                   setUser(googleUser);
+                   setIsLoginModalOpen(false);
+                 } catch (e) {
+                   console.error("Failed to fetch Google profile", e);
+                 }
+              }
+            },
+          });
+       }
+    }, 500);
+
+    return () => {
+      clearTimeout(timer);
+      clearInterval(checkGoogle);
+    };
+  }, []); // Only on mount
   
-  // 2. Monitor Auth State
+  // 2. Monitor Firebase Auth State (Guest)
   useEffect(() => {
     const auth = getAppAuth();
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      if (currentUser) {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      // If we have an access token, it means we are using Google Login (GIS).
+      // We prioritize GIS user state if accessToken exists.
+      if (!accessToken) {
+         setUser(firebaseUser);
+      }
+      
+      if (firebaseUser) {
         const localData = loadHistory();
         setHistory(localData);
-      } else {
+      } else if (!accessToken) {
+        // Only clear if neither auth is active
         setHistory([]); 
-        setAccessToken(null);
       }
     });
     return () => unsubscribe();
-  }, []);
+  }, [accessToken]);
 
   // 3. Save to Local Storage
   useEffect(() => {
@@ -154,35 +224,52 @@ export default function App() {
 
 
   // --- Logic ---
-  const handleGoogleLogin = async () => {
-    try {
-      const token = await signInWithGoogle();
-      if (token) {
-        setAccessToken(token);
+  
+  const handleLoginSelection = async (type: 'google' | 'guest') => {
+    if (type === 'google') {
+      if (tokenClientRef.current) {
+        // Trigger GIS flow
+        // Using requestAccessToken to get the token for Drive/Classroom
+        tokenClientRef.current.requestAccessToken();
       } else {
-        console.warn("Login flow incomplete. Continuing in guest mode.");
+        alert("Google Auth is initializing... please wait.");
       }
-    } catch (e: any) {
-      console.error("Login Error in Component:", e);
-      if (e?.code === 'auth/unauthorized-domain' || e?.message?.includes('unauthorized domain')) {
-        alert(t.loginUnavailable);
+    } else {
+      // Guest
+      if (!user || !user.isAnonymous) {
+        await signInAsGuest();
       }
+      setIsLoginModalOpen(false);
     }
+  };
+
+  const handleLogout = async () => {
+    // 1. Clear GIS state
+    if (accessToken) {
+      // Ideally revoke token here using google.accounts.oauth2.revoke
+      if (typeof google !== 'undefined' && google.accounts && google.accounts.oauth2) {
+        google.accounts.oauth2.revoke(accessToken, () => { console.log('Token revoked') });
+      }
+      setAccessToken(null);
+    }
+    
+    // 2. Firebase Logout
+    await logOut();
+    
+    // 3. Reset User
+    setUser(null);
+    
+    // 4. Re-initiate Guest login if needed by effect
   };
 
   const handleExport = async (type: 'drive' | 'docs' | 'classroom') => {
     setIsExportMenuOpen(false);
     
     // Auth Checks before processing
-    if (type === 'drive') {
-      if (!user || user.isAnonymous || !accessToken) {
-        alert(t.loginRequiredDrive);
-        return;
-      }
-    }
-    if (type === 'classroom') {
-      if (!user || user.isAnonymous || !accessToken) {
-        alert(t.loginRequiredClassroom);
+    if (type === 'drive' || type === 'classroom') {
+      // Check for Google Login (accessToken presence) specifically for these features
+      if (!accessToken) {
+        setIsLoginModalOpen(true);
         return;
       }
     }
@@ -196,7 +283,7 @@ export default function App() {
       } 
       else if (type === 'docs') {
         // Docs fallback logic: Login ? API : Download
-        if (accessToken && user && !user.isAnonymous) {
+        if (accessToken) {
            await exportToDocs(accessToken, history);
            alert(`Docs: ${t.exportSuccess}`);
         } else {
@@ -556,7 +643,7 @@ export default function App() {
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-gray-400 font-medium px-2 hidden sm:inline">Guest</span>
                     <button 
-                      onClick={handleGoogleLogin}
+                      onClick={() => setIsLoginModalOpen(true)}
                       className="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors whitespace-nowrap"
                     >
                       Login
@@ -567,10 +654,10 @@ export default function App() {
                     {user.photoURL ? (
                       <img src={user.photoURL} alt="Profile" className="w-6 h-6 rounded-full" />
                     ) : (
-                      <div className="w-6 h-6 bg-indigo-500 rounded-full text-white flex items-center justify-center text-xs">{user.email?.[0]}</div>
+                      <div className="w-6 h-6 bg-indigo-500 rounded-full text-white flex items-center justify-center text-xs">{user.email ? user.email[0] : (user.displayName ? user.displayName[0] : 'U')}</div>
                     )}
                     <button 
-                      onClick={logOut} 
+                      onClick={handleLogout} 
                       className="text-xs font-bold text-gray-500 hover:text-red-500 transition-colors whitespace-nowrap"
                     >
                       Logout
@@ -623,25 +710,21 @@ export default function App() {
         <div className="flex items-center justify-between gap-2 bg-gray-50 p-1.5 rounded-2xl border border-gray-200">
            {/* Input Language */}
            <div className="flex-1 flex flex-col items-center min-w-0">
-              <span className="text-[10px] text-gray-400 font-medium mb-1 whitespace-nowrap">{t.inputLang}</span>
-              <div className="w-full relative px-2">
+              <span className="text-[10px] text-gray-800 font-bold mb-1 whitespace-nowrap">{t.inputLang}</span>
+              <div className="w-full relative px-2 py-1">
                  <select
                   value={langInput.code}
                   onChange={(e) => {
                     const l = SUPPORTED_LANGUAGES.find(l => l.code === e.target.value);
                     if (l) setLangInput(l);
                   }}
-                  className="bg-transparent font-bold text-slate-800 text-sm outline-none text-center w-full appearance-none truncate"
+                  className="opacity-0 absolute inset-0 w-full h-full z-10 cursor-pointer"
                  >
                    {SUPPORTED_LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.flag} {l.name}</option>)}
                  </select>
-                 <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                    <span className="opacity-0">{langInput.flag} {langInput.name}</span>
+                 <div className="text-sm font-bold text-gray-900 truncate max-w-[120px] sm:max-w-xs text-center">
+                    {langInput.flag} {langInput.name}
                  </div>
-              </div>
-              {/* Visible label to handle truncation better visually */}
-              <div className="text-sm font-bold text-slate-800 truncate max-w-[120px] sm:max-w-xs text-center pointer-events-none -mt-5">
-                 {langInput.flag} {langInput.name}
               </div>
            </div>
            
@@ -649,20 +732,19 @@ export default function App() {
 
            {/* Output Language */}
            <div className="flex-1 flex flex-col items-center min-w-0">
-              <span className="text-[10px] text-gray-400 font-medium mb-1 whitespace-nowrap">{t.outputLang}</span>
-               <div className="w-full relative px-2">
+              <span className="text-[10px] text-gray-800 font-bold mb-1 whitespace-nowrap">{t.outputLang}</span>
+               <div className="w-full relative px-2 py-1">
                  <select
                   value={langOutput.code}
                   onChange={(e) => {
                     const l = SUPPORTED_LANGUAGES.find(l => l.code === e.target.value);
                     if (l) setLangOutput(l);
                   }}
-                  className="bg-transparent font-bold text-indigo-600 text-sm outline-none text-center w-full appearance-none opacity-0 absolute inset-0 z-10 cursor-pointer"
+                  className="opacity-0 absolute inset-0 w-full h-full z-10 cursor-pointer"
                  >
                    {SUPPORTED_LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.flag} {l.name}</option>)}
                  </select>
-                 {/* Visible label for better text wrapping/truncation control */}
-                 <div className="text-sm font-bold text-indigo-600 truncate max-w-[120px] sm:max-w-xs text-center">
+                 <div className="text-sm font-bold text-gray-900 truncate max-w-[120px] sm:max-w-xs text-center">
                     {langOutput.flag} {langOutput.name}
                  </div>
               </div>
@@ -693,9 +775,9 @@ export default function App() {
         </div>
 
         {/* Split View Header */}
-        <div className="grid grid-cols-2 gap-4 px-4 py-2 bg-slate-100 border-b border-gray-200 text-xs font-bold text-gray-500 uppercase tracking-wide shrink-0 z-10">
+        <div className="grid grid-cols-2 gap-4 px-4 py-2 bg-slate-100 border-b border-gray-200 text-xs font-bold text-gray-800 uppercase tracking-wide shrink-0 z-10">
           <div className="text-center truncate px-2">{langInput.name}</div>
-          <div className="text-center text-indigo-600 truncate px-2">{langOutput.name}</div>
+          <div className="text-center text-gray-800 truncate px-2">{langOutput.name}</div>
         </div>
 
         {/* Scrollable Content */}
@@ -812,6 +894,58 @@ export default function App() {
         langB={langOutput}
         t={t}
       />
+
+      {/* --- LOGIN MODAL --- */}
+      {isLoginModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+           <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden flex flex-col p-6">
+              <div className="text-center mb-6">
+                 <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-3 text-indigo-600">
+                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" /></svg>
+                 </div>
+                 <h2 className="text-xl font-bold text-gray-800">{t.loginModalTitle}</h2>
+              </div>
+              
+              <div className="space-y-3">
+                 {/* Google Login Button */}
+                 <button 
+                    onClick={() => handleLoginSelection('google')}
+                    className="w-full flex items-center p-4 rounded-xl border border-gray-200 hover:border-blue-200 hover:bg-blue-50 transition-all group text-left relative overflow-hidden"
+                 >
+                    <div className="bg-white p-2 rounded-full shadow-sm mr-4 z-10">
+                      <GoogleLogo />
+                    </div>
+                    <div className="z-10">
+                       <h3 className="font-bold text-gray-800 group-hover:text-blue-700">{t.loginGoogle}</h3>
+                       <p className="text-xs text-gray-500 mt-0.5">{t.loginGoogleDesc}</p>
+                    </div>
+                    <div className="absolute inset-0 border-2 border-transparent group-hover:border-blue-100 rounded-xl pointer-events-none"></div>
+                 </button>
+
+                 {/* Guest Login Button */}
+                 <button 
+                    onClick={() => handleLoginSelection('guest')}
+                    className="w-full flex items-center p-4 rounded-xl border border-gray-200 hover:border-gray-400 hover:bg-gray-50 transition-all group text-left"
+                 >
+                    <div className="bg-gray-200 p-2 rounded-full mr-4 text-gray-500 group-hover:bg-gray-300 group-hover:text-gray-700">
+                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                    </div>
+                    <div>
+                       <h3 className="font-bold text-gray-700">{t.loginGuest}</h3>
+                       <p className="text-xs text-gray-400 mt-0.5">{t.loginGuestDesc}</p>
+                    </div>
+                 </button>
+              </div>
+
+              <button 
+                onClick={() => setIsLoginModalOpen(false)}
+                className="mt-6 text-sm text-gray-400 hover:text-gray-600 underline"
+              >
+                Cancel
+              </button>
+           </div>
+        </div>
+      )}
 
       {/* --- CLASSROOM MODAL --- */}
       {isClassroomModalOpen && (

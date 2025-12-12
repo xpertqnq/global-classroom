@@ -2,8 +2,6 @@
 import { initializeApp } from 'firebase/app';
 import { 
   getAuth, 
-  GoogleAuthProvider, 
-  signInWithPopup, 
   signOut,
   signInAnonymously,
   Auth
@@ -21,45 +19,21 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase App
-// gstatic guarantees that imports share the same instance
 const app = initializeApp(firebaseConfig);
 
-// Initialize Auth Lazily to be safe
 let authInstance: Auth | null = null;
-let googleProvider: GoogleAuthProvider | null = null;
 
 export const getAppAuth = (): Auth => {
   if (!authInstance) {
-    // getAuth(app) should work if the 'auth' component is registered.
-    // gstatic handles this registration via side-effects in the imported module.
     authInstance = getAuth(app);
   }
   return authInstance;
 };
 
-const getGoogleProvider = (): GoogleAuthProvider => {
-  if (!googleProvider) {
-    googleProvider = new GoogleAuthProvider();
-    googleProvider.addScope('https://www.googleapis.com/auth/drive.file');
-    googleProvider.addScope('https://www.googleapis.com/auth/documents');
-    googleProvider.addScope('https://www.googleapis.com/auth/classroom.coursework.students');
-  }
-  return googleProvider;
-};
-
 // --- Auth Functions ---
-export const signInWithGoogle = async (): Promise<string | null> => {
-  try {
-    const auth = getAppAuth();
-    const provider = getGoogleProvider();
-    const result = await signInWithPopup(auth, provider);
-    const credential = GoogleAuthProvider.credentialFromResult(result);
-    return credential?.accessToken || null;
-  } catch (error) {
-    console.error("Login failed", error);
-    return null;
-  }
-};
+
+// Note: Google Login is now handled via GIS (Google Identity Services) in App.tsx
+// to avoid iframe/popup blocking issues.
 
 export const signInAsGuest = async () => {
   try {
@@ -75,6 +49,7 @@ export const signInAsGuest = async () => {
 export const logOut = async () => {
   try {
     const auth = getAppAuth();
+    // Also revoke token in App.tsx logic if possible, but here we just sign out of Firebase
     await signOut(auth);
   } catch (error) {
     console.error("Logout failed", error);

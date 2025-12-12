@@ -1,5 +1,19 @@
 import { Language, TranslationMap, VoiceOption } from './types';
 
+// TODO: Replace with your actual Google Cloud OAuth 2.0 Client ID
+// Format: "1234567890-abcdefg.apps.googleusercontent.com"
+export const GOOGLE_CLIENT_ID = "322060753872-placeholder-client-id.apps.googleusercontent.com"; 
+
+export const GOOGLE_SCOPES = [
+  'https://www.googleapis.com/auth/drive.file',
+  'https://www.googleapis.com/auth/documents',
+  'https://www.googleapis.com/auth/classroom.courses.readonly',
+  'https://www.googleapis.com/auth/classroom.coursework.me',
+  'https://www.googleapis.com/auth/classroom.coursework.students',
+  'https://www.googleapis.com/auth/userinfo.profile',
+  'https://www.googleapis.com/auth/userinfo.email'
+].join(' ');
+
 export const SUPPORTED_LANGUAGES: Language[] = [
   { code: 'ko', name: '한국어 (Korean)', flag: '🇰🇷' },
   { code: 'en', name: 'English', flag: '🇺🇸' },
@@ -70,7 +84,12 @@ export const TRANSLATIONS: Record<string, TranslationMap> = {
     selectCourse: "수업 선택",
     fetchingCourses: "수업 목록 불러오는 중...",
     noCourses: "참여 중인 수업이 없습니다.",
-    submitTo: "제출하기"
+    submitTo: "제출하기",
+    loginModalTitle: "로그인 방법 선택",
+    loginGoogle: "Google로 로그인",
+    loginGoogleDesc: "Classroom, Docs, Drive 기능을 사용합니다.",
+    loginGuest: "게스트로 계속하기",
+    loginGuestDesc: "기록을 기기에만 저장합니다.",
   },
   en: {
     appTitle: "Global Class",
@@ -109,7 +128,12 @@ export const TRANSLATIONS: Record<string, TranslationMap> = {
     selectCourse: "Select Class",
     fetchingCourses: "Fetching classes...",
     noCourses: "No classes found.",
-    submitTo: "Submit"
+    submitTo: "Submit",
+    loginModalTitle: "Choose Login Method",
+    loginGoogle: "Sign in with Google",
+    loginGoogleDesc: "Enable Classroom, Docs, and Drive features.",
+    loginGuest: "Continue as Guest",
+    loginGuestDesc: "Save transcripts locally only.",
   },
   ja: {
     appTitle: "グローバル教室",
@@ -148,7 +172,12 @@ export const TRANSLATIONS: Record<string, TranslationMap> = {
     selectCourse: "クラスを選択",
     fetchingCourses: "クラスを取得中...",
     noCourses: "クラスが見つかりません。",
-    submitTo: "提出"
+    submitTo: "提出",
+    loginModalTitle: "ログイン方法の選択",
+    loginGoogle: "Googleでログイン",
+    loginGoogleDesc: "Classroom, Docs, Drive機能を使用します。",
+    loginGuest: "ゲストとして続行",
+    loginGuestDesc: "履歴をデバイスにのみ保存します。",
   },
   zh: {
     appTitle: "全球课堂",
@@ -187,7 +216,12 @@ export const TRANSLATIONS: Record<string, TranslationMap> = {
     selectCourse: "选择课程",
     fetchingCourses: "正在获取课程...",
     noCourses: "未找到课程。",
-    submitTo: "提交"
+    submitTo: "提交",
+    loginModalTitle: "选择登录方式",
+    loginGoogle: "使用 Google 登录",
+    loginGoogleDesc: "使用 Classroom、Docs 和 Drive 功能。",
+    loginGuest: "以访客身份继续",
+    loginGuestDesc: "仅将记录保存在本地。",
   },
   vi: {
     appTitle: "Lớp Học Toàn Cầu",
@@ -226,7 +260,12 @@ export const TRANSLATIONS: Record<string, TranslationMap> = {
     selectCourse: "Chọn lớp học",
     fetchingCourses: "Đang tải danh sách lớp...",
     noCourses: "Không tìm thấy lớp học.",
-    submitTo: "Nộp"
+    submitTo: "Nộp",
+    loginModalTitle: "Chọn phương thức đăng nhập",
+    loginGoogle: "Đăng nhập bằng Google",
+    loginGoogleDesc: "Sử dụng tính năng Classroom, Docs, Drive.",
+    loginGuest: "Tiếp tục với tư cách Khách",
+    loginGuestDesc: "Chỉ lưu lịch sử trên thiết bị này.",
   },
   es: {
     appTitle: "Clase Global",
@@ -265,7 +304,12 @@ export const TRANSLATIONS: Record<string, TranslationMap> = {
     selectCourse: "Seleccionar clase",
     fetchingCourses: "Obteniendo clases...",
     noCourses: "No se encontraron clases.",
-    submitTo: "Enviar"
+    submitTo: "Enviar",
+    loginModalTitle: "Elegir método de inicio",
+    loginGoogle: "Iniciar con Google",
+    loginGoogleDesc: "Usar funciones de Classroom, Docs y Drive.",
+    loginGuest: "Continuar como invitado",
+    loginGuestDesc: "Guardar historial solo localmente.",
   }
 };
 

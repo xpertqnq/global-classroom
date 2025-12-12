@@ -1,3 +1,7 @@
+declare global {
+  var google: any;
+}
+
 export interface Language {
   code: string;
   name: string;
@@ -74,4 +78,10 @@ export interface TranslationMap {
   fetchingCourses: string;
   noCourses: string;
   submitTo: string;
+  // Login Modal
+  loginModalTitle: string;
+  loginGoogle: string;
+  loginGoogleDesc: string;
+  loginGuest: string;
+  loginGuestDesc: string;
 }

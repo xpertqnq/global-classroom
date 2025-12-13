@@ -144,36 +144,48 @@ export default function App() {
     // We check if google global is available (loaded via script in index.html)
     const checkGoogle = setInterval(() => {
        if (typeof google !== 'undefined' && google.accounts && google.accounts.oauth2) {
-          clearInterval(checkGoogle);
-          tokenClientRef.current = google.accounts.oauth2.initTokenClient({
-            client_id: GOOGLE_CLIENT_ID,
-            scope: GOOGLE_SCOPES,
-            callback: async (tokenResponse: any) => {
-              if (tokenResponse && tokenResponse.access_token) {
-                 setAccessToken(tokenResponse.access_token);
-                 // Fetch User Profile
-                 try {
-                   const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+          if (!GOOGLE_CLIENT_ID) {
+            console.error('GOOGLE_CLIENT_ID is empty. Check VITE_GOOGLE_CLIENT_ID in Netlify env.');
+            clearInterval(checkGoogle);
+            return;
+          }
+
+          try {
+            tokenClientRef.current = google.accounts.oauth2.initTokenClient({
+              client_id: GOOGLE_CLIENT_ID,
+              scope: GOOGLE_SCOPES,
+              callback: async (tokenResponse: any) => {
+                if (tokenResponse && tokenResponse.access_token) {
+                  setAccessToken(tokenResponse.access_token);
+                  // Fetch User Profile
+                  try {
+                    const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
                       headers: { 'Authorization': `Bearer ${tokenResponse.access_token}` }
-                   });
-                   const profile = await res.json();
-                   // Construct a user object compatible with our UI
-                   const googleUser = {
+                    });
+                    const profile = await res.json();
+                    // Construct a user object compatible with our UI
+                    const googleUser = {
                       uid: profile.sub,
                       displayName: profile.name,
                       email: profile.email,
                       photoURL: profile.picture,
                       isAnonymous: false,
                       providerId: 'google.com'
-                   };
-                   setUser(googleUser);
-                   setIsLoginModalOpen(false);
-                 } catch (e) {
-                   console.error("Failed to fetch Google profile", e);
-                 }
-              }
-            },
-          });
+                    };
+                    setUser(googleUser);
+                    setIsLoginModalOpen(false);
+                  } catch (e) {
+                    console.error("Failed to fetch Google profile", e);
+                  }
+                }
+              },
+            });
+            console.log('GIS Token Client initialized');
+            clearInterval(checkGoogle);
+          } catch (e) {
+            console.error('initTokenClient failed:', e);
+            tokenClientRef.current = null;
+          }
        }
     }, 500);
 

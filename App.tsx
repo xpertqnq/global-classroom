@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
 import { User, onAuthStateChanged } from 'firebase/auth';
-import { 
+import {
   getAppAuth, 
   logOut, 
   signInAsGuest 
 } from './utils/firebase';
 import { loadHistory, saveHistory, clearHistory } from './utils/localStorage';
+import { getCachedAudioBase64, setCachedAudioBase64, clearCachedAudio } from './utils/idbAudioCache';
 import { 
   backupToDrive, 
   exportToDocs, 
@@ -35,7 +36,7 @@ const MicOffIcon = () => <svg className="w-8 h-8" fill="none" stroke="currentCol
 const CameraIcon = () => <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><circle cx="12" cy="13" r="3" /></svg>;
 const ArrowRightIcon = () => <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>;
 const SpeakerIcon = () => <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" /></svg>;
-const PlayAllIcon = () => <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
+const PlayAllIcon = () => <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 012 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
 const GlobeIcon = () => <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
 const ExportIcon = () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>;
 
@@ -512,6 +513,7 @@ export default function App() {
   const handleClearLocalHistory = () => {
     clearHistory();
     setLocalHistoryPreview([]);
+    clearCachedAudio();
   };
 
   const handleOpenNewWindow = () => {
@@ -524,10 +526,20 @@ export default function App() {
 
   const playTTS = async (text: string, id?: string): Promise<void> => {
     if (!text) return Promise.resolve();
+    const cacheKey = id ? `${id}:${selectedVoice.name}:${MODEL_TTS}` : null;
     if (id) {
       const item = history.find(i => i.id === id);
       if (item?.audioBase64) {
         return playAudioFromBase64(item.audioBase64);
+      }
+    }
+    if (id && cacheKey && settings.audioCacheEnabled) {
+      const cached = await getCachedAudioBase64(cacheKey);
+      if (cached) {
+        setHistory(prev => prev.map(item => 
+           item.id === id ? { ...item, audioBase64: cached } : item
+        ));
+        return playAudioFromBase64(cached);
       }
     }
     try {
@@ -542,11 +554,14 @@ export default function App() {
           setHistory(prev => prev.map(item => 
              item.id === id ? { ...item, audioBase64: base64Audio } : item
           ));
+          if (cacheKey && settings.audioCacheEnabled) {
+            await setCachedAudioBase64(cacheKey, base64Audio);
+          }
         }
         return playAudioFromBase64(base64Audio);
       }
     } catch (e) {
-      console.error("TTS generation failed", e);
+      console.error("TTS failed", e);
     }
     return Promise.resolve();
   };

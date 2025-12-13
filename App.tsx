@@ -4,9 +4,9 @@ import { User, onAuthStateChanged } from 'firebase/auth';
 import { 
   getAppAuth, 
   logOut, 
-  signInAsGuest 
+  signInAsGuest
 } from './utils/firebase';
-import { loadHistory, saveHistory } from './utils/localStorage';
+import { loadHistory, saveHistory, loadSessions, saveSession, deleteSession, Session } from './utils/localStorage';
 import { 
   backupToDrive, 
   exportToDocs, 
@@ -18,7 +18,6 @@ import { Language, ConnectionStatus, VoiceOption, ConversationItem } from './typ
 import { 
   SUPPORTED_LANGUAGES, 
   MODEL_LIVE, 
-  MODEL_TRANSLATE, 
   MODEL_TTS, 
   TRANSLATIONS, 
   VOICE_OPTIONS,
@@ -27,17 +26,23 @@ import {
 } from './constants';
 import { createPcmBlob, decodeAudioData, base64ToUint8Array } from './utils/audioUtils';
 import Visualizer from './components/Visualizer';
-import CameraView from './components/CameraView';
 
 // --- Icons ---
 const MicIcon = () => <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>;
 const MicOffIcon = () => <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 5.586a2 2 0 012.828 0l-.793.793-2.828-2.828.793-.793zM11 18.172l-6.586-6.586a2 2 0 002.828 2.828L11 18.172zm9.9-9.9l-6.586 6.586a2 2 0 01-2.828-2.828l6.586-6.586a2 2 0 012.828 2.828z" /><line x1="1" y1="1" x2="23" y2="23" strokeWidth={2} /></svg>;
-const CameraIcon = () => <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><circle cx="12" cy="13" r="3" /></svg>;
+const LensIcon = () => <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><circle cx="12" cy="13" r="3" /></svg>;
 const ArrowRightIcon = () => <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>;
 const SpeakerIcon = () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" /></svg>;
 const PlayAllIcon = () => <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
 const GlobeIcon = () => <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
 const ExportIcon = () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>;
+const PlusIcon = () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>;
+const HistoryIcon = () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
+const XIcon = () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>;
+const TrashIcon = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>;
+const LockIcon = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>;
+const UnlockIcon = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" /></svg>;
+const ScrollDownIcon = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>;
 
 // --- Brand Icons (Official Colors) ---
 const DocsIcon = () => (
@@ -87,21 +92,36 @@ export default function App() {
   // --- Translation Logic Settings ---
   const [langInput, setLangInput] = useState<Language>(SUPPORTED_LANGUAGES[0]); // Default: Korean
   const [langOutput, setLangOutput] = useState<Language>(SUPPORTED_LANGUAGES[1]); // Default: English
-  const [isAutoPlay, setIsAutoPlay] = useState(true);
+  // Changed Auto Play default to false as requested
+  const [isAutoPlay, setIsAutoPlay] = useState(false);
   const [selectedVoice, setSelectedVoice] = useState<VoiceOption>(VOICE_OPTIONS[0]);
+  const [viewMode, setViewMode] = useState<'both' | 'output'>('both');
+  const [isAutoScroll, setIsAutoScroll] = useState(true);
+
+  // We need a ref for isAutoPlay to access it inside the Live API callback
+  const isAutoPlayRef = useRef(isAutoPlay);
+  useEffect(() => {
+    isAutoPlayRef.current = isAutoPlay;
+  }, [isAutoPlay]);
 
   // --- Status & Media ---
   const [status, setStatus] = useState<ConnectionStatus>(ConnectionStatus.DISCONNECTED);
   const [isMicOn, setIsMicOn] = useState(false);
-  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  // Removed internal camera state
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
 
   // --- Auth & Data ---
-  // We use `any` here to support both Firebase User (Guest) and our custom Google User object
   const [user, setUser] = useState<User | any | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null); 
   const [history, setHistory] = useState<ConversationItem[]>([]);
   const [currentTurnText, setCurrentTurnText] = useState('');
+  const [currentResponseText, setCurrentResponseText] = useState('');
+  
+  // Sessions
+  const [sessionId, setSessionId] = useState<string>(Date.now().toString());
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
   const historyRef = useRef<HTMLDivElement>(null);
 
   // --- Modals State ---
@@ -120,7 +140,14 @@ export default function App() {
   const streamRef = useRef<MediaStream | null>(null);
   const sessionPromiseRef = useRef<Promise<any> | null>(null);
   const processorRef = useRef<ScriptProcessorNode | null>(null);
-  const tokenClientRef = useRef<any>(null); // GIS Token Client
+  
+  // Audio playback queue
+  const nextStartTimeRef = useRef<number>(0);
+  const audioSourcesRef = useRef<AudioBufferSourceNode[]>([]);
+
+  // GIS Token Client Ref
+  const tokenClient = useRef<any>(null);
+  const [isGisLoaded, setIsGisLoaded] = useState(false);
 
   // 1. Initialize Auth on Mount
   useEffect(() => {
@@ -129,8 +156,7 @@ export default function App() {
       const auth = getAppAuth();
       if (!auth.currentUser) {
         try {
-          // If no user is logged in (and not Google logged in via memory state), try guest
-          if (!user) {
+          if (!user && !accessToken) {
              await signInAsGuest();
           }
         } catch (error) {
@@ -140,76 +166,97 @@ export default function App() {
     };
     const timer = setTimeout(initGuestAuth, 500); 
 
-    // B. Initialize GIS Client
-    // We check if google global is available (loaded via script in index.html)
-    const checkGoogle = setInterval(() => {
-       if (typeof google !== 'undefined' && google.accounts && google.accounts.oauth2) {
-          clearInterval(checkGoogle);
-          tokenClientRef.current = google.accounts.oauth2.initTokenClient({
+    // B. Initialize GIS (Google Identity Services)
+    const initGis = () => {
+      if (window.google && window.google.accounts) {
+        try {
+          tokenClient.current = window.google.accounts.oauth2.initTokenClient({
             client_id: GOOGLE_CLIENT_ID,
             scope: GOOGLE_SCOPES,
-            callback: async (tokenResponse: any) => {
-              if (tokenResponse && tokenResponse.access_token) {
-                 setAccessToken(tokenResponse.access_token);
-                 // Fetch User Profile
-                 try {
-                   const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-                      headers: { 'Authorization': `Bearer ${tokenResponse.access_token}` }
-                   });
-                   const profile = await res.json();
-                   // Construct a user object compatible with our UI
-                   const googleUser = {
-                      uid: profile.sub,
-                      displayName: profile.name,
-                      email: profile.email,
-                      photoURL: profile.picture,
-                      isAnonymous: false,
-                      providerId: 'google.com'
-                   };
-                   setUser(googleUser);
-                   setIsLoginModalOpen(false);
-                 } catch (e) {
-                   console.error("Failed to fetch Google profile", e);
-                 }
+            callback: async (response: any) => {
+              if (response.error) {
+                console.error("GIS Error:", response);
+                alert("Google Login Failed: " + JSON.stringify(response.error));
+                return;
+              }
+              const token = response.access_token;
+              setAccessToken(token);
+              
+              // Fetch User Profile
+              try {
+                const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                  headers: { Authorization: `Bearer ${token}` }
+                });
+                const userInfo = await userInfoRes.json();
+                
+                setUser({
+                  uid: userInfo.sub,
+                  email: userInfo.email,
+                  displayName: userInfo.name,
+                  photoURL: userInfo.picture,
+                  isAnonymous: false
+                });
+                setIsLoginModalOpen(false);
+              } catch (e) {
+                console.error("Failed to fetch user info", e);
+                alert("Login succeeded but failed to fetch user profile.");
               }
             },
           });
-       }
-    }, 500);
+          setIsGisLoaded(true);
+        } catch (e) {
+           console.error("GIS Initialization Failed:", e);
+        }
+      } else {
+        setTimeout(initGis, 500); // Retry if script not loaded yet
+      }
+    };
+    initGis();
+
+    // Load Sessions
+    setSessions(loadSessions());
 
     return () => {
       clearTimeout(timer);
-      clearInterval(checkGoogle);
     };
-  }, []); // Only on mount
+  }, []); 
   
-  // 2. Monitor Firebase Auth State (Guest)
+  // 2. Monitor Firebase Auth State (Guest/Google)
   useEffect(() => {
     const auth = getAppAuth();
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      // If we have an access token, it means we are using Google Login (GIS).
-      // We prioritize GIS user state if accessToken exists.
+      // Only set guest user if we are NOT logged in via Google (accessToken)
       if (!accessToken) {
          setUser(firebaseUser);
       }
       
-      if (firebaseUser) {
+      if (firebaseUser || accessToken) {
         const localData = loadHistory();
         setHistory(localData);
-      } else if (!accessToken) {
-        // Only clear if neither auth is active
+      } else {
         setHistory([]); 
       }
     });
     return () => unsubscribe();
   }, [accessToken]);
 
-  // 3. Save to Local Storage
+  // 3. Save History & Session Logic
   useEffect(() => {
+    // Save to active local history
     if (history.length > 0) {
       saveHistory(history);
+      
+      // Also update the session entry if it exists
+      const preview = history[history.length - 1].translated || history[history.length - 1].original || "New conversation";
+      saveSession({
+        id: sessionId,
+        date: parseInt(sessionId), // simplified for this example
+        preview: preview.substring(0, 50),
+        items: history
+      });
+      setSessions(loadSessions());
     }
-  }, [history]);
+  }, [history, sessionId]);
 
   // Close export menu
   useEffect(() => {
@@ -222,20 +269,74 @@ export default function App() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-
   // --- Logic ---
   
+  const handleNewChat = () => {
+    setHistory([]);
+    setSessionId(Date.now().toString());
+    setCurrentTurnText('');
+    setCurrentResponseText('');
+    setIsSidebarOpen(false);
+  };
+  
+  const handleLoadSession = (session: Session) => {
+    setHistory(session.items);
+    setSessionId(session.id);
+    setIsSidebarOpen(false);
+  };
+
+  const handleDeleteSession = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    const updated = deleteSession(id);
+    setSessions(updated);
+    if (id === sessionId) {
+      handleNewChat();
+    }
+  };
+
   const handleLoginSelection = async (type: 'google' | 'guest') => {
     if (type === 'google') {
-      if (tokenClientRef.current) {
-        // Trigger GIS flow
-        // Using requestAccessToken to get the token for Drive/Classroom
-        tokenClientRef.current.requestAccessToken();
+      if (tokenClient.current) {
+        // Trigger GIS Popup
+        tokenClient.current.requestAccessToken({});
+      } else if (window.google && window.google.accounts) {
+        // Retry init if waiting
+        try {
+           tokenClient.current = window.google.accounts.oauth2.initTokenClient({
+            client_id: GOOGLE_CLIENT_ID,
+            scope: GOOGLE_SCOPES,
+            callback: async (response: any) => {
+              if (response.error) {
+                alert("Error: " + response.error);
+                return;
+              }
+              const token = response.access_token;
+              setAccessToken(token);
+              // Fetch User Profile
+              try {
+                const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                  headers: { Authorization: `Bearer ${token}` }
+                });
+                const userInfo = await userInfoRes.json();
+                setUser({
+                  uid: userInfo.sub,
+                  email: userInfo.email,
+                  displayName: userInfo.name,
+                  photoURL: userInfo.picture,
+                  isAnonymous: false
+                });
+                setIsLoginModalOpen(false);
+              } catch (e) { console.error(e); }
+            },
+          });
+          tokenClient.current.requestAccessToken({});
+        } catch(e) {
+          alert("Google Sign-In script error. Please refresh the page.");
+        }
       } else {
-        alert("Google Auth is initializing... please wait.");
+        alert("Google Sign-In is still initializing. Please check your internet connection and try again.");
       }
     } else {
-      // Guest
       if (!user || !user.isAnonymous) {
         await signInAsGuest();
       }
@@ -244,30 +345,22 @@ export default function App() {
   };
 
   const handleLogout = async () => {
-    // 1. Clear GIS state
+    // GIS Logout
     if (accessToken) {
-      // Ideally revoke token here using google.accounts.oauth2.revoke
-      if (typeof google !== 'undefined' && google.accounts && google.accounts.oauth2) {
-        google.accounts.oauth2.revoke(accessToken, () => { console.log('Token revoked') });
+      if (window.google && window.google.accounts) {
+         window.google.accounts.oauth2.revoke(accessToken, () => {});
       }
       setAccessToken(null);
     }
     
-    // 2. Firebase Logout
+    // Firebase Logout
     await logOut();
-    
-    // 3. Reset User
     setUser(null);
-    
-    // 4. Re-initiate Guest login if needed by effect
   };
 
   const handleExport = async (type: 'drive' | 'docs' | 'classroom') => {
     setIsExportMenuOpen(false);
-    
-    // Auth Checks before processing
     if (type === 'drive' || type === 'classroom') {
-      // Check for Google Login (accessToken presence) specifically for these features
       if (!accessToken) {
         setIsLoginModalOpen(true);
         return;
@@ -282,7 +375,6 @@ export default function App() {
         alert(`Drive: ${t.exportSuccess}`);
       } 
       else if (type === 'docs') {
-        // Docs fallback logic: Login ? API : Download
         if (accessToken) {
            await exportToDocs(accessToken, history);
            alert(`Docs: ${t.exportSuccess}`);
@@ -292,13 +384,11 @@ export default function App() {
         }
       } 
       else if (type === 'classroom') {
-        // Open Modal to list courses
         setIsClassroomModalOpen(true);
         fetchCourses();
       }
     } catch (e) {
       console.error("Export failed", e);
-      // Fallback logic on error
       if (type === 'docs') {
          downloadTranscriptLocally(history);
          alert(t.offlineMode);
@@ -318,7 +408,6 @@ export default function App() {
       setCourses(list);
     } catch (e) {
       console.error("Failed to fetch courses", e);
-      // Fallback: Just open Classroom
       window.open('https://classroom.google.com', '_blank');
       setIsClassroomModalOpen(false);
     } finally {
@@ -359,6 +448,13 @@ export default function App() {
       audioContextRef.current.close();
       audioContextRef.current = null;
     }
+    // Stop any playing audio
+    audioSourcesRef.current.forEach(source => {
+      try { source.stop(); } catch(e) {}
+    });
+    audioSourcesRef.current = [];
+    nextStartTimeRef.current = 0;
+    
     setAnalyser(null);
   }, []);
 
@@ -426,30 +522,6 @@ export default function App() {
     }
   };
 
-  const translateText = async (text: string, id: string) => {
-    try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const response = await ai.models.generateContent({
-        model: MODEL_TRANSLATE,
-        contents: `Translate the following text from ${langInput.name} to ${langOutput.name}. 
-                   Output ONLY the translated text, no explanations.
-                   Text: "${text}"`,
-      });
-      const translated = response.text?.trim() || "";
-      setHistory(prev => prev.map(item => 
-        item.id === id ? { ...item, translated: translated, isTranslating: false } : item
-      ));
-      if (isAutoPlay && translated) {
-        playTTS(translated, id);
-      }
-    } catch (e) {
-      console.error("Translation failed", e);
-      setHistory(prev => prev.map(item => 
-        item.id === id ? { ...item, translated: "Error", isTranslating: false } : item
-      ));
-    }
-  };
-
   const connectToGemini = useCallback(async () => {
     try {
       cleanupAudio();
@@ -470,10 +542,22 @@ export default function App() {
       analyserNode.fftSize = 256;
       setAnalyser(analyserNode);
 
+      // --- UPDATED SYSTEM INSTRUCTION FOR BIDIRECTIONAL TRANSLATION ---
       const instruction = `
-        You are a helpful assistant acting as a transcriber. 
-        Your task is to listen to the user speaking in ${langInput.name}.
-        Just listen and let the transcription engine handle the text.
+You are a real-time BIDIRECTIONAL translation assistant for Global Classroom.
+You are the interpreter between two languages: ${langInput.name} (Language A) and ${langOutput.name} (Language B).
+
+CORE RESPONSIBILITIES:
+1. Listen to the audio input.
+2. Automatically detect which language is being spoken.
+3. If the user speaks ${langInput.name}, translate it immediately to ${langOutput.name}.
+4. If the user speaks ${langOutput.name}, translate it immediately to ${langInput.name}.
+
+BEHAVIOR:
+- Respond immediately when a sentence boundary is detected.
+- Provide smooth, natural translations.
+- Do NOT provide the original transcription in the output, ONLY the translation.
+- If the input is mixed, translate it to the "other" primary language of the context.
       `;
 
       const sessionPromise = ai.live.connect({
@@ -484,7 +568,8 @@ export default function App() {
             voiceConfig: { prebuiltVoiceConfig: { voiceName: selectedVoice.name } },
           },
           systemInstruction: instruction, 
-          inputAudioTranscription: {}, 
+          inputAudioTranscription: {},
+          outputAudioTranscription: {}, // Request text of what the model speaks (the translation)
         },
         callbacks: {
           onopen: async () => {
@@ -528,27 +613,103 @@ export default function App() {
             }
           },
           onmessage: async (message: LiveServerMessage) => {
-            const transcription = message.serverContent?.inputTranscription?.text;
-            if (transcription) {
-              setCurrentTurnText(prev => prev + transcription);
+            // 1. Handle Input Transcription (User Speech)
+            const inputTrans = message.serverContent?.inputTranscription?.text;
+            if (inputTrans) {
+              setCurrentTurnText(prev => prev + inputTrans);
             }
 
+            // 2. Handle Output Transcription (Model Translation Text)
+            const outputTrans = message.serverContent?.outputTranscription?.text;
+            if (outputTrans) {
+              setCurrentResponseText(prev => prev + outputTrans);
+            }
+
+            // 3. Handle Input Turn Complete (User finished a sentence)
             if (message.serverContent?.turnComplete) {
+              // We only commit the INPUT text here. 
+              // The translation might still be coming in or will come shortly.
               setCurrentTurnText(finalText => {
                 if (finalText.trim()) {
-                  const newItem: ConversationItem = {
-                    id: Date.now().toString(),
-                    original: finalText.trim(),
-                    translated: "",
-                    isTranslating: true,
-                    timestamp: Date.now()
-                  };
-
-                  setHistory(prev => [...prev, newItem]);
-                  translateText(newItem.original, newItem.id);
+                  // Push a new history item with the input text
+                  // We will update the 'translated' field of this item as the model responds
+                  setHistory(prev => [
+                    ...prev, 
+                    {
+                      id: Date.now().toString(),
+                      original: finalText.trim(),
+                      translated: "", // Will be filled by currentResponseText
+                      isTranslating: true,
+                      timestamp: Date.now()
+                    }
+                  ]);
                 }
                 return "";
               });
+            }
+
+            // 4. Handle Output Audio (Model Translation Speech)
+            const base64Audio = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
+            
+            // Only play audio if isAutoPlay is enabled (checked via Ref)
+            if (base64Audio && isAutoPlayRef.current) {
+               if (audioContextRef.current) {
+                  const ctx = audioContextRef.current;
+                  // Calculate next start time for gapless playback
+                  const currentTime = ctx.currentTime;
+                  if (nextStartTimeRef.current < currentTime) {
+                    nextStartTimeRef.current = currentTime;
+                  }
+                  
+                  try {
+                    const audioBuffer = await decodeAudioData(base64ToUint8Array(base64Audio), ctx, 24000);
+                    const source = ctx.createBufferSource();
+                    source.buffer = audioBuffer;
+                    source.connect(ctx.destination);
+                    source.start(nextStartTimeRef.current);
+                    nextStartTimeRef.current += audioBuffer.duration;
+                    
+                    audioSourcesRef.current.push(source);
+                    source.onended = () => {
+                       const index = audioSourcesRef.current.indexOf(source);
+                       if (index > -1) audioSourcesRef.current.splice(index, 1);
+                    };
+                  } catch(e) {
+                    console.error("Error decoding stream audio", e);
+                  }
+               }
+            }
+            
+            // 5. Update the latest history item with the accumulating translation text
+            // Note: In streaming, we update the last item that is marked as 'isTranslating'
+            setCurrentResponseText(currentResponse => {
+               if (currentResponse) {
+                  setHistory(prev => {
+                     const lastIndex = prev.length - 1;
+                     if (lastIndex >= 0 && prev[lastIndex].isTranslating) {
+                        const newHistory = [...prev];
+                        newHistory[lastIndex] = {
+                           ...newHistory[lastIndex],
+                           translated: currentResponse
+                        };
+                        return newHistory;
+                     }
+                     return prev;
+                  });
+               }
+               return currentResponse;
+            });
+
+            // 6. Handle "Interrupted" or Model Turn Complete
+            if (message.serverContent?.interrupted) {
+               audioSourcesRef.current.forEach(s => s.stop());
+               audioSourcesRef.current = [];
+               nextStartTimeRef.current = 0;
+               setCurrentResponseText(""); 
+               // Mark last item as done translating if interrupted? 
+               setHistory(prev => prev.map(item => ({...item, isTranslating: false})));
+            } else if (message.serverContent?.modelTurn?.parts?.[0]?.text) {
+               // Sometimes model sends text in modelTurn directly
             }
           },
           onclose: () => {
@@ -568,7 +729,7 @@ export default function App() {
       console.error("Connection setup failed:", error);
       setStatus(ConnectionStatus.ERROR);
     }
-  }, [langInput, selectedVoice, cleanupAudio]); 
+  }, [langInput, langOutput, selectedVoice, cleanupAudio]); 
 
   const toggleMic = () => {
     if (status === ConnectionStatus.CONNECTED) {
@@ -584,17 +745,53 @@ export default function App() {
     }
   };
 
+  // Scroll to bottom logic with lock check
   useEffect(() => {
-    if (historyRef.current) {
+    if (isAutoScroll && historyRef.current) {
       historyRef.current.scrollTop = historyRef.current.scrollHeight;
     }
-  }, [history, currentTurnText]);
+  }, [history, currentTurnText, currentResponseText, isAutoScroll]);
+
+  const openGoogleLens = () => {
+    window.open('https://lens.google.com', '_blank');
+  };
 
   useEffect(() => () => cleanupAudio(), [cleanupAudio]);
 
   return (
-    <div className="h-full flex flex-col bg-slate-50 text-slate-900 font-sans overflow-hidden">
+    <div className="h-full flex flex-col bg-slate-50 text-slate-900 font-sans overflow-hidden relative">
       
+      {/* --- HISTORY SIDEBAR --- */}
+      {isSidebarOpen && (
+        <>
+          <div className="absolute inset-0 z-40 bg-black/50 backdrop-blur-sm" onClick={() => setIsSidebarOpen(false)}></div>
+          <div className="absolute top-0 left-0 h-full w-72 bg-white shadow-2xl z-50 flex flex-col animate-in slide-in-from-left duration-200">
+             <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+                <h2 className="font-bold text-gray-800 text-lg">History</h2>
+                <button onClick={() => setIsSidebarOpen(false)} className="text-gray-400 hover:text-gray-600">
+                  <XIcon />
+                </button>
+             </div>
+             <div className="flex-1 overflow-y-auto p-2 space-y-2">
+               {sessions.length === 0 && <div className="text-center text-gray-400 mt-10 text-sm">No history yet.</div>}
+               {sessions.map(session => (
+                 <div key={session.id} 
+                      onClick={() => handleLoadSession(session)}
+                      className={`group p-3 rounded-xl border cursor-pointer transition-all hover:bg-indigo-50 hover:border-indigo-100 ${sessionId === session.id ? 'bg-indigo-50 border-indigo-200' : 'bg-white border-gray-100'}`}>
+                    <div className="flex justify-between items-start">
+                      <div className="text-xs text-gray-400 font-medium mb-1">{new Date(session.date).toLocaleString()}</div>
+                      <button onClick={(e) => handleDeleteSession(e, session.id)} className="text-gray-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <TrashIcon />
+                      </button>
+                    </div>
+                    <div className="text-sm text-gray-700 line-clamp-2 font-medium">{session.preview || "Empty session"}</div>
+                 </div>
+               ))}
+             </div>
+          </div>
+        </>
+      )}
+
       {/* --- HEADER --- */}
       <header className="px-5 py-3 bg-white border-b border-gray-100 flex flex-wrap sm:flex-nowrap justify-between items-center z-20 shadow-sm shrink-0 gap-3">
         {/* Title & Logo */}
@@ -605,6 +802,13 @@ export default function App() {
 
         {/* Global Settings (Right Side) */}
         <div className="flex items-center gap-2 sm:gap-3 flex-wrap sm:flex-nowrap justify-end flex-1">
+           {/* Session Controls */}
+           <button onClick={() => setIsSidebarOpen(true)} className="p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors" title="History">
+              <HistoryIcon />
+           </button>
+           <button onClick={handleNewChat} className="p-2 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-full transition-colors font-bold mr-2" title="New Chat">
+              <PlusIcon />
+           </button>
 
            {/* Export Dropdown */}
            <div className="relative" ref={exportMenuRef}>
@@ -669,8 +873,8 @@ export default function App() {
              <div className="text-xs text-gray-400 whitespace-nowrap">Loading...</div>
            )}
 
-           {/* Voice Selector */}
-           <div className="items-center bg-gray-100 rounded-full px-3 py-1.5 border border-gray-200 hidden md:flex">
+           {/* Voice Selector - Updated to be visible on mobile */}
+           <div className="items-center bg-gray-100 rounded-full px-3 py-1.5 border border-gray-200 flex">
              <span className="text-[10px] text-gray-500 font-bold mr-2 uppercase tracking-wide whitespace-nowrap">{t.voiceLabel}</span>
              <select 
                value={selectedVoice.name}
@@ -687,18 +891,16 @@ export default function App() {
            </div>
            
            {/* UI Language */}
-           <div className="flex items-center gap-1 bg-white rounded-full px-2 py-1.5 border border-gray-200 cursor-pointer hover:bg-gray-50 min-w-[70px]">
+           <div className="flex items-center gap-1 bg-white rounded-full px-2 py-1.5 border border-gray-200 cursor-pointer hover:bg-gray-50 min-w-[70px] max-w-[120px]">
             <GlobeIcon />
             <select 
               value={uiLangCode}
               onChange={(e) => setUiLangCode(e.target.value)}
-              className="bg-transparent text-xs font-medium text-gray-600 outline-none cursor-pointer w-full"
+              className="bg-transparent text-xs font-medium text-gray-600 outline-none cursor-pointer w-full text-ellipsis"
             >
-              <option value="ko">한국어</option>
-              <option value="en">Eng</option>
-              <option value="ja">日本語</option>
-              <option value="zh">中文</option>
-              <option value="es">Esp</option>
+              {SUPPORTED_LANGUAGES.map((l) => (
+                <option key={l.code} value={l.code}>{l.name}</option>
+              ))}
             </select>
           </div>
         </div>
@@ -706,78 +908,75 @@ export default function App() {
 
       {/* --- LANGUAGE & MODE CONTROLS --- */}
       <div className="bg-white px-4 py-4 shadow-sm z-10 flex flex-col gap-3 shrink-0">
-        {/* Language Pair */}
-        <div className="flex items-center justify-between gap-2 bg-gray-50 p-1.5 rounded-2xl border border-gray-200">
-           {/* Input Language */}
-           <div className="flex-1 flex flex-col items-center min-w-0">
-              <span className="text-[10px] text-gray-800 font-bold mb-1 whitespace-nowrap">{t.inputLang}</span>
-              <div className="w-full relative px-2 py-1">
-                 <select
-                  value={langInput.code}
-                  onChange={(e) => {
-                    const l = SUPPORTED_LANGUAGES.find(l => l.code === e.target.value);
-                    if (l) setLangInput(l);
-                  }}
-                  className="opacity-0 absolute inset-0 w-full h-full z-10 cursor-pointer"
-                 >
-                   {SUPPORTED_LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.flag} {l.name}</option>)}
-                 </select>
-                 <div className="text-sm font-bold text-gray-900 truncate max-w-[120px] sm:max-w-xs text-center">
-                    {langInput.flag} {langInput.name}
-                 </div>
-              </div>
-           </div>
-           
-           <div className="text-gray-300 shrink-0"><ArrowRightIcon /></div>
+        <div className="flex gap-4">
+          {/* Language Pair */}
+          <div className="flex-1 flex items-center justify-between gap-2 bg-gray-50 p-1.5 rounded-2xl border border-gray-200">
+             {/* Input Language */}
+             <div className="flex-1 flex flex-col items-center min-w-0">
+                <span className="text-[10px] text-gray-800 font-bold mb-1 whitespace-nowrap">{t.inputLang}</span>
+                <div className="w-full relative px-2 py-1">
+                   <select
+                    value={langInput.code}
+                    onChange={(e) => {
+                      const l = SUPPORTED_LANGUAGES.find(l => l.code === e.target.value);
+                      if (l) setLangInput(l);
+                    }}
+                    className="opacity-0 absolute inset-0 w-full h-full z-10 cursor-pointer"
+                   >
+                     {SUPPORTED_LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.flag} {l.name}</option>)}
+                   </select>
+                   <div className="text-sm font-bold text-gray-900 truncate max-w-[120px] sm:max-w-xs text-center">
+                      {langInput.flag} {langInput.name}
+                   </div>
+                </div>
+             </div>
+             
+             <div className="text-gray-300 shrink-0"><ArrowRightIcon /></div>
+  
+             {/* Output Language */}
+             <div className="flex-1 flex flex-col items-center min-w-0">
+                <span className="text-[10px] text-gray-800 font-bold mb-1 whitespace-nowrap">{t.outputLang}</span>
+                 <div className="w-full relative px-2 py-1">
+                   <select
+                    value={langOutput.code}
+                    onChange={(e) => {
+                      const l = SUPPORTED_LANGUAGES.find(l => l.code === e.target.value);
+                      if (l) setLangOutput(l);
+                    }}
+                    className="opacity-0 absolute inset-0 w-full h-full z-10 cursor-pointer"
+                   >
+                     {SUPPORTED_LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.flag} {l.name}</option>)}
+                   </select>
+                   <div className="text-sm font-bold text-gray-900 truncate max-w-[120px] sm:max-w-xs text-center">
+                      {langOutput.flag} {langOutput.name}
+                   </div>
+                </div>
+             </div>
+          </div>
 
-           {/* Output Language */}
-           <div className="flex-1 flex flex-col items-center min-w-0">
-              <span className="text-[10px] text-gray-800 font-bold mb-1 whitespace-nowrap">{t.outputLang}</span>
-               <div className="w-full relative px-2 py-1">
-                 <select
-                  value={langOutput.code}
-                  onChange={(e) => {
-                    const l = SUPPORTED_LANGUAGES.find(l => l.code === e.target.value);
-                    if (l) setLangOutput(l);
-                  }}
-                  className="opacity-0 absolute inset-0 w-full h-full z-10 cursor-pointer"
-                 >
-                   {SUPPORTED_LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.flag} {l.name}</option>)}
-                 </select>
-                 <div className="text-sm font-bold text-gray-900 truncate max-w-[120px] sm:max-w-xs text-center">
-                    {langOutput.flag} {langOutput.name}
-                 </div>
-              </div>
-           </div>
-        </div>
-
-        {/* Auto Mode Toggle */}
-        <div className="flex justify-center">
-          <button 
-             onClick={() => setIsAutoPlay(!isAutoPlay)}
-             className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold transition-all border ${
-               isAutoPlay 
-                 ? 'bg-indigo-50 border-indigo-200 text-indigo-600' 
-                 : 'bg-white border-gray-200 text-gray-400'
-             }`}
-          >
-             <div className={`w-2 h-2 rounded-full ${isAutoPlay ? 'bg-indigo-500 animate-pulse' : 'bg-gray-300'}`}></div>
-             {t.autoPlay} {isAutoPlay ? 'ON' : 'OFF'}
-          </button>
+          {/* View Toggle */}
+          <div className="flex bg-gray-100 p-1 rounded-2xl border border-gray-200 shrink-0">
+             <button 
+               onClick={() => setViewMode('both')}
+               className={`px-3 rounded-xl text-xs font-bold transition-all ${viewMode === 'both' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+             >
+               Both
+             </button>
+             <button 
+               onClick={() => setViewMode('output')}
+               className={`px-3 rounded-xl text-xs font-bold transition-all ${viewMode === 'output' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+             >
+               Output
+             </button>
+          </div>
         </div>
       </div>
 
-      {/* --- MAIN LIST AREA (Split View) --- */}
+      {/* --- MAIN LIST AREA --- */}
       <div className="flex-1 overflow-hidden relative bg-slate-50 flex flex-col">
         {/* Visualizer Background */}
         <div className="absolute top-0 left-0 right-0 h-32 opacity-30 pointer-events-none z-0">
            <Visualizer analyser={analyser} isActive={isMicOn} color="#6366f1" />
-        </div>
-
-        {/* Split View Header */}
-        <div className="grid grid-cols-2 gap-4 px-4 py-2 bg-slate-100 border-b border-gray-200 text-xs font-bold text-gray-800 uppercase tracking-wide shrink-0 z-10">
-          <div className="text-center truncate px-2">{langInput.name}</div>
-          <div className="text-center text-gray-800 truncate px-2">{langOutput.name}</div>
         </div>
 
         {/* Scrollable Content */}
@@ -792,46 +991,51 @@ export default function App() {
              </div>
            )}
 
-           <div className="flex flex-col gap-4">
+           <div className="flex flex-col gap-0.5">
              {history.map((item) => (
-               <div key={item.id} className="grid grid-cols-2 gap-4 items-stretch border-b border-gray-100 pb-4 last:border-0 animate-in fade-in slide-in-from-bottom-2 duration-300">
+               <div key={item.id} className={`grid gap-1 items-stretch mb-1 animate-in fade-in slide-in-from-bottom-2 duration-300 ${viewMode === 'both' ? 'grid-cols-2' : 'grid-cols-1'}`}>
                   
                   {/* Left Column: Original Text */}
-                  <div className="bg-white border border-gray-200 p-4 rounded-xl shadow-sm text-gray-800 leading-relaxed text-sm md:text-base">
-                    {item.original}
-                  </div>
+                  {viewMode === 'both' && (
+                    <div className="bg-white border border-gray-100 p-3 rounded-xl shadow-sm text-gray-800 leading-relaxed text-sm h-fit">
+                      {item.original}
+                    </div>
+                  )}
 
                   {/* Right Column: Translated Text */}
-                  <div className={`relative p-4 rounded-xl shadow-sm flex flex-col justify-between transition-colors ${
+                  <div className={`relative p-3 rounded-xl shadow-sm transition-colors h-fit ${
                       item.isTranslating ? 'bg-gray-100 border border-gray-200' : 'bg-indigo-50 border border-indigo-100'
                     }`}>
-                     {item.isTranslating ? (
+                     {item.isTranslating && !item.translated ? (
                         <div className="flex gap-1 h-6 items-center">
                           <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></div>
                           <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce delay-75"></div>
                           <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce delay-150"></div>
                         </div>
                      ) : (
-                       <>
-                         <span className="text-indigo-900 font-medium leading-relaxed text-sm md:text-base">{item.translated}</span>
+                       <div className="flex flex-row items-start gap-2">
                          <button 
                             onClick={() => playTTS(item.translated, item.id)}
-                            className="self-end mt-2 p-2 bg-indigo-100 hover:bg-indigo-200 text-indigo-600 rounded-full transition-colors active:scale-95"
+                            className="shrink-0 p-1.5 bg-indigo-100 hover:bg-indigo-200 text-indigo-600 rounded-full transition-colors active:scale-95"
                          >
                            <SpeakerIcon />
                          </button>
-                       </>
+                         <span className="text-indigo-900 font-medium leading-relaxed text-sm md:text-base whitespace-pre-wrap pt-0.5">{item.translated}</span>
+                       </div>
                      )}
                   </div>
                </div>
              ))}
 
-             {/* Live Transcription Placeholder (Left Side) */}
+             {/* Live Transcription Placeholder */}
              {currentTurnText && (
-               <div className="grid grid-cols-2 gap-4 opacity-70">
-                  <div className="bg-gray-50 border border-gray-300 border-dashed p-4 rounded-xl text-gray-600 italic animate-pulse">
-                    {currentTurnText}
-                  </div>
+               <div className={`grid gap-1 opacity-70 ${viewMode === 'both' ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                  {viewMode === 'both' && (
+                    <div className="bg-gray-50 border border-gray-300 border-dashed p-3 rounded-xl text-gray-600 italic animate-pulse text-sm">
+                      {currentTurnText}
+                    </div>
+                  )}
+                  {/* Show partial translation if we have it before completion, although mostly it comes after */}
                   <div className="flex items-center justify-center text-gray-300 text-sm italic">
                     ...
                   </div>
@@ -844,18 +1048,35 @@ export default function App() {
       </div>
 
       {/* --- BOTTOM CONTROLS --- */}
-      <div className="bg-white px-6 py-4 rounded-t-[2rem] shadow-[0_-5px_20px_rgba(0,0,0,0.05)] flex items-center justify-between z-30 shrink-0">
+      <div className="bg-white px-6 py-4 rounded-t-[2rem] shadow-[0_-5px_20px_rgba(0,0,0,0.05)] flex items-center justify-between z-30 shrink-0 gap-4">
           
-          {/* Play All */}
-          <button 
-            onClick={playAll}
-            className="flex flex-col items-center gap-1 text-gray-500 hover:text-indigo-600 transition-colors w-16"
-          >
-            <div className="p-3 bg-gray-100 rounded-full">
-              <PlayAllIcon />
-            </div>
-            <span className="text-[10px] font-bold">{t.playAll}</span>
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Scroll Lock Toggle */}
+            <button 
+               onClick={() => setIsAutoScroll(!isAutoScroll)}
+               className={`flex flex-col items-center gap-1 transition-colors w-16 group`}
+            >
+               <div className={`p-3 rounded-full border transition-all ${isAutoScroll ? 'bg-indigo-100 border-indigo-200 text-indigo-600' : 'bg-gray-50 border-gray-100 text-gray-400'}`}>
+                 <div className="w-6 h-6 flex items-center justify-center rounded-full">
+                    {isAutoScroll ? <ScrollDownIcon /> : <LockIcon />}
+                 </div>
+               </div>
+               <span className={`text-[10px] font-bold ${isAutoScroll ? 'text-indigo-600' : 'text-gray-400'}`}>
+                  {isAutoScroll ? t.scrollAuto : t.scrollLock}
+               </span>
+            </button>
+
+            {/* Play All */}
+            <button 
+              onClick={playAll}
+              className="flex flex-col items-center gap-1 text-gray-500 hover:text-indigo-600 transition-colors w-16"
+            >
+              <div className="p-3 bg-gray-100 rounded-full">
+                <PlayAllIcon />
+              </div>
+              <span className="text-[10px] font-bold">{t.playAll}</span>
+            </button>
+          </div>
 
           {/* Main Mic */}
           <button
@@ -875,27 +1096,19 @@ export default function App() {
             )}
           </button>
 
-          {/* Vision */}
+          {/* Google Lens Link */}
           <button 
-            onClick={() => setIsCameraOpen(true)}
+            onClick={openGoogleLens}
             className="flex flex-col items-center gap-1 text-gray-500 hover:text-indigo-600 transition-colors w-16"
           >
              <div className="p-3 bg-gray-100 rounded-full">
-               <CameraIcon />
+               <LensIcon />
              </div>
              <span className="text-[10px] font-bold">{t.visionButton}</span>
           </button>
       </div>
 
-      <CameraView 
-        isOpen={isCameraOpen} 
-        onClose={() => setIsCameraOpen(false)}
-        langA={langInput}
-        langB={langOutput}
-        t={t}
-      />
-
-      {/* --- LOGIN MODAL --- */}
+      {/* Login Modal */}
       {isLoginModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
            <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden flex flex-col p-6">

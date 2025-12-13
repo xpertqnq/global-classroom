@@ -1,6 +1,14 @@
 import { ConversationItem } from '../types';
 
 const HISTORY_KEY = 'global_classroom_history';
+const SESSIONS_KEY = 'global_classroom_sessions';
+
+export interface Session {
+  id: string;
+  date: number;
+  preview: string;
+  items: ConversationItem[];
+}
 
 export const loadHistory = (): ConversationItem[] => {
   try {
@@ -14,18 +22,57 @@ export const loadHistory = (): ConversationItem[] => {
 
 export const saveHistory = (history: ConversationItem[]) => {
   try {
-    // Create a version of history without the heavy audioBase64 data
-    // We only store the metadata and text to avoid hitting localStorage quotas (usually 5MB)
+    // Save current active history
     const itemsToSave = history.map(item => {
-      // Destructure to separate audio data
       const { audioBase64, ...metaData } = item;
       return metaData;
     });
-    
     localStorage.setItem(HISTORY_KEY, JSON.stringify(itemsToSave));
   } catch (e) {
     console.error("Failed to save history to local storage", e);
   }
+};
+
+export const loadSessions = (): Session[] => {
+  try {
+    const data = localStorage.getItem(SESSIONS_KEY);
+    return data ? JSON.parse(data) : [];
+  } catch (e) {
+    return [];
+  }
+};
+
+export const saveSession = (session: Session) => {
+  try {
+    const sessions = loadSessions();
+    // Optimize items before saving to session storage
+    const optimizedItems = session.items.map(item => {
+       const { audioBase64, ...metaData } = item;
+       return metaData;
+    });
+    
+    const sessionToSave = { ...session, items: optimizedItems };
+    
+    const index = sessions.findIndex(s => s.id === session.id);
+    if (index >= 0) {
+      sessions[index] = sessionToSave;
+    } else {
+      sessions.unshift(sessionToSave);
+    }
+    localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions));
+    return sessions;
+  } catch (e) {
+    console.error(e);
+    return [];
+  }
+};
+
+export const deleteSession = (id: string) => {
+   try {
+     const sessions = loadSessions().filter(s => s.id !== id);
+     localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions));
+     return sessions;
+   } catch (e) { return []; }
 };
 
 export const clearHistory = () => {

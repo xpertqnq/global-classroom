@@ -1,5 +1,5 @@
 // Import from the exact paths defined in importmap
-import { initializeApp } from 'firebase/app';
+import * as firebaseApp from 'firebase/app';
 import { 
   getAuth, 
   signOut,
@@ -19,7 +19,7 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase App
-const app = initializeApp(firebaseConfig);
+const app = (firebaseApp as any).initializeApp(firebaseConfig);
 
 let authInstance: Auth | null = null;
 
@@ -32,8 +32,8 @@ export const getAppAuth = (): Auth => {
 
 // --- Auth Functions ---
 
-// Note: Google Login is now handled via GIS (Google Identity Services) in App.tsx
-// to avoid iframe/popup blocking issues.
+// Google Login is now handled via Google Identity Services (GIS) in App.tsx
+// This avoids iframe/popup blocking issues in environments like AI Studio.
 
 export const signInAsGuest = async () => {
   try {
@@ -49,7 +49,6 @@ export const signInAsGuest = async () => {
 export const logOut = async () => {
   try {
     const auth = getAppAuth();
-    // Also revoke token in App.tsx logic if possible, but here we just sign out of Firebase
     await signOut(auth);
   } catch (error) {
     console.error("Logout failed", error);

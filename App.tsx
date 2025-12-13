@@ -606,8 +606,13 @@ export default function App() {
       <header className="px-5 py-3 bg-white border-b border-gray-100 flex flex-wrap sm:flex-nowrap justify-between items-center z-20 shadow-sm shrink-0 gap-3">
         {/* Title & Logo */}
         <div className="flex items-center gap-2">
-           <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-xs">AI</div>
-           <h1 className="font-bold text-md text-slate-800 whitespace-nowrap">{t.appTitle}</h1>
+           <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-sm">
+             <GlobeIcon />
+           </div>
+           <div className="flex flex-col leading-tight">
+             <h1 className="font-bold text-sm sm:text-md text-slate-800 whitespace-nowrap">{t.appTitle}</h1>
+             <div className="text-[11px] text-slate-400 font-medium whitespace-nowrap hidden sm:block">{t.subtitle}</div>
+           </div>
         </div>
 
         {/* Global Settings (Right Side) */}
@@ -713,6 +718,13 @@ export default function App() {
 
       {/* --- LANGUAGE & MODE CONTROLS --- */}
       <div className="bg-white px-4 py-4 shadow-sm z-10 flex flex-col gap-3 shrink-0">
+        <div className="flex items-center justify-center gap-2 text-indigo-700 font-extrabold text-base">
+          <span className="shrink-0">{langInput.flag}</span>
+          <span className="truncate max-w-[40vw]">{langInput.name}</span>
+          <span className="text-gray-300 shrink-0"><ArrowRightIcon /></span>
+          <span className="shrink-0">{langOutput.flag}</span>
+          <span className="truncate max-w-[40vw]">{langOutput.name}</span>
+        </div>
         {/* Language Pair */}
         <div className="flex items-center justify-between gap-2 bg-gray-50 p-1.5 rounded-2xl border border-gray-200">
            {/* Input Language */}
@@ -796,6 +808,12 @@ export default function App() {
              <div className="h-full flex flex-col items-center justify-center text-gray-400 text-center px-6 opacity-60">
                 <MicIcon />
                 <p className="mt-4 whitespace-pre-wrap text-sm">{t.emptyHint}</p>
+                <button
+                  onClick={toggleMic}
+                  className="mt-6 px-5 py-2.5 rounded-full bg-indigo-600 text-white text-sm font-bold shadow-md hover:bg-indigo-700 transition-colors active:scale-95"
+                >
+                  {t.statusStandby}
+                </button>
              </div>
            )}
 

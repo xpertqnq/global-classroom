@@ -1,5 +1,4 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { GoogleGenAI, Type } from "@google/genai";
 import { MODEL_VISION } from '../constants';
 import { VisionResult, Language, TranslationMap } from '../types';
 
@@ -17,6 +16,19 @@ const CameraView: React.FC<CameraViewProps> = ({ isOpen, onClose, langA, langB, 
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [result, setResult] = useState<VisionResult | null>(null);
+
+  const postApi = async <T,>(path: string, payload: unknown): Promise<T> => {
+    const res = await fetch(`/api/${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error((json as any)?.error || '요청에 실패했습니다.');
+    }
+    return json as T;
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -67,42 +79,15 @@ const CameraView: React.FC<CameraViewProps> = ({ isOpen, onClose, langA, langB, 
 
   const analyzeImage = async (base64Image: string) => {
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      
-      const prompt = `
-        Analyze the text in this image.
-        Rules:
-        1. If the detected text is in ${langA.name}, translate it to ${langB.name}.
-        2. If the detected text is in ${langB.name}, translate it to ${langA.name}.
-        3. If it's a mix or another language, translate it to ${langA.name}.
-        Return the result in JSON format.
-      `;
-
-      const response = await ai.models.generateContent({
+      const data = await postApi<{ originalText: string; translatedText: string }>('vision', {
+        base64Image,
+        langA: langA.name,
+        langB: langB.name,
         model: MODEL_VISION,
-        contents: {
-          parts: [
-            { inlineData: { mimeType: 'image/jpeg', data: base64Image } },
-            { text: prompt }
-          ]
-        },
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              originalText: { type: Type.STRING },
-              translatedText: { type: Type.STRING },
-            },
-            required: ["originalText", "translatedText"]
-          }
-        }
       });
-
-      const json = JSON.parse(response.text || "{}");
       setResult({
-        originalText: json.originalText || t.visionNoText,
-        translatedText: json.translatedText || t.visionFail
+        originalText: data.originalText || t.visionNoText,
+        translatedText: data.translatedText || t.visionFail
       });
 
     } catch (error) {

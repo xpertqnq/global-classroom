@@ -382,6 +382,19 @@ export default function App() {
     });
   };
 
+  const postApi = async <T,>(path: string, payload: unknown): Promise<T> => {
+    const res = await fetch(`/api/${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error((json as any)?.error || '요청에 실패했습니다.');
+    }
+    return json as T;
+  };
+
   const playTTS = async (text: string, id?: string): Promise<void> => {
     if (!text) return Promise.resolve();
     if (id) {
@@ -391,18 +404,12 @@ export default function App() {
       }
     }
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const response = await ai.models.generateContent({
+      const data = await postApi<{ audioBase64: string }>('tts', {
+        text,
+        voiceName: selectedVoice.name,
         model: MODEL_TTS,
-        contents: { parts: [{ text: text }] },
-        config: {
-          responseModalities: [Modality.AUDIO],
-          speechConfig: {
-            voiceConfig: { prebuiltVoiceConfig: { voiceName: selectedVoice.name } },
-          },
-        },
       });
-      const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+      const base64Audio = data.audioBase64;
       if (base64Audio) {
         if (id) {
           setHistory(prev => prev.map(item => 
@@ -428,14 +435,13 @@ export default function App() {
 
   const translateText = async (text: string, id: string) => {
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const response = await ai.models.generateContent({
+      const data = await postApi<{ translated: string }>('translate', {
+        text,
+        from: langInput.name,
+        to: langOutput.name,
         model: MODEL_TRANSLATE,
-        contents: `Translate the following text from ${langInput.name} to ${langOutput.name}. 
-                   Output ONLY the translated text, no explanations.
-                   Text: "${text}"`,
       });
-      const translated = response.text?.trim() || "";
+      const translated = data.translated?.trim() || "";
       setHistory(prev => prev.map(item => 
         item.id === id ? { ...item, translated: translated, isTranslating: false } : item
       ));
@@ -455,11 +461,12 @@ export default function App() {
       cleanupAudio();
       setStatus(ConnectionStatus.CONNECTING);
 
-      if (!process.env.API_KEY) {
+      const tokenData = await postApi<{ token: string }>('live-token', { model: MODEL_LIVE });
+      if (!tokenData?.token) {
         setStatus(ConnectionStatus.ERROR);
         return;
       }
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey: tokenData.token });
       
       inputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
       audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
@@ -568,7 +575,7 @@ export default function App() {
       console.error("Connection setup failed:", error);
       setStatus(ConnectionStatus.ERROR);
     }
-  }, [langInput, selectedVoice, cleanupAudio]); 
+  }, [langInput, langOutput, selectedVoice, cleanupAudio]); 
 
   const toggleMic = () => {
     if (status === ConnectionStatus.CONNECTED) {

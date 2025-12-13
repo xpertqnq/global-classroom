@@ -88,12 +88,14 @@ export default function App() {
   const [langInput, setLangInput] = useState<Language>(SUPPORTED_LANGUAGES[0]); // Default: Korean
   const [langOutput, setLangOutput] = useState<Language>(SUPPORTED_LANGUAGES[1]); // Default: English
   const [isAutoPlay, setIsAutoPlay] = useState(true);
+  const [isScrollLocked, setIsScrollLocked] = useState(false);
   const [selectedVoice, setSelectedVoice] = useState<VoiceOption>(VOICE_OPTIONS[0]);
 
   // --- Status & Media ---
   const [status, setStatus] = useState<ConnectionStatus>(ConnectionStatus.DISCONNECTED);
-  const [isMicOn, setIsMicOn] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string>('');
   const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [isMicOn, setIsMicOn] = useState(false);
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
 
   // --- Auth & Data ---
@@ -614,10 +616,10 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (historyRef.current) {
+    if (!isScrollLocked && historyRef.current) {
       historyRef.current.scrollTop = historyRef.current.scrollHeight;
     }
-  }, [history, currentTurnText]);
+  }, [history, currentTurnText, isScrollLocked]);
 
   useEffect(() => () => cleanupAudio(), [cleanupAudio]);
 
@@ -704,7 +706,7 @@ export default function App() {
            )}
 
            {/* Voice Selector */}
-           <div className="items-center bg-gray-100 rounded-full px-3 py-1.5 border border-gray-200 hidden md:flex">
+           <div className="flex items-center bg-gray-100 rounded-full px-3 py-1.5 border border-gray-200">
              <span className="text-[10px] text-gray-500 font-bold mr-2 uppercase tracking-wide whitespace-nowrap">{t.voiceLabel}</span>
              <select 
                value={selectedVoice.name}
@@ -740,13 +742,6 @@ export default function App() {
 
       {/* --- LANGUAGE & MODE CONTROLS --- */}
       <div className="bg-white px-4 py-4 shadow-sm z-10 flex flex-col gap-3 shrink-0">
-        <div className="flex items-center justify-center gap-2 text-indigo-700 font-extrabold text-base">
-          <span className="shrink-0">{langInput.flag}</span>
-          <span className="truncate max-w-[40vw]">{langInput.name}</span>
-          <span className="text-gray-300 shrink-0"><ArrowRightIcon /></span>
-          <span className="shrink-0">{langOutput.flag}</span>
-          <span className="truncate max-w-[40vw]">{langOutput.name}</span>
-        </div>
         {/* Language Pair */}
         <div className="flex items-center justify-between gap-2 bg-gray-50 p-1.5 rounded-2xl border border-gray-200">
            {/* Input Language */}
@@ -791,21 +786,6 @@ export default function App() {
               </div>
            </div>
         </div>
-
-        {/* Auto Mode Toggle */}
-        <div className="flex justify-center">
-          <button 
-             onClick={() => setIsAutoPlay(!isAutoPlay)}
-             className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold transition-all border ${
-               isAutoPlay 
-                 ? 'bg-indigo-50 border-indigo-200 text-indigo-600' 
-                 : 'bg-white border-gray-200 text-gray-400'
-             }`}
-          >
-             <div className={`w-2 h-2 rounded-full ${isAutoPlay ? 'bg-indigo-500 animate-pulse' : 'bg-gray-300'}`}></div>
-             {t.autoPlay} {isAutoPlay ? 'ON' : 'OFF'}
-          </button>
-        </div>
       </div>
 
       {/* --- MAIN LIST AREA (Split View) --- */}
@@ -813,12 +793,6 @@ export default function App() {
         {/* Visualizer Background */}
         <div className="absolute top-0 left-0 right-0 h-32 opacity-30 pointer-events-none z-0">
            <Visualizer analyser={analyser} isActive={isMicOn} color="#6366f1" />
-        </div>
-
-        {/* Split View Header */}
-        <div className="grid grid-cols-2 gap-4 px-4 py-2 bg-slate-100 border-b border-gray-200 text-xs font-bold text-gray-800 uppercase tracking-wide shrink-0 z-10">
-          <div className="text-center truncate px-2">{langInput.name}</div>
-          <div className="text-center text-gray-800 truncate px-2">{langOutput.name}</div>
         </div>
 
         {/* Scrollable Content */}
@@ -893,16 +867,31 @@ export default function App() {
       {/* --- BOTTOM CONTROLS --- */}
       <div className="bg-white px-6 py-4 rounded-t-[2rem] shadow-[0_-5px_20px_rgba(0,0,0,0.05)] flex items-center justify-between z-30 shrink-0">
           
-          {/* Play All */}
-          <button 
-            onClick={playAll}
-            className="flex flex-col items-center gap-1 text-gray-500 hover:text-indigo-600 transition-colors w-16"
-          >
-            <div className="p-3 bg-gray-100 rounded-full">
-              <PlayAllIcon />
-            </div>
-            <span className="text-[10px] font-bold">{t.playAll}</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={playAll}
+              className="flex flex-col items-center gap-1 text-gray-500 hover:text-indigo-600 transition-colors w-16"
+            >
+              <div className="p-3 bg-gray-100 rounded-full">
+                <PlayAllIcon />
+              </div>
+              <span className="text-[10px] font-bold">{t.playAll}</span>
+            </button>
+
+            <button 
+              onClick={() => setIsAutoPlay(!isAutoPlay)}
+              className={`flex flex-col items-center gap-1 transition-colors w-16 ${
+                isAutoPlay ? 'text-indigo-600' : 'text-gray-500'
+              }`}
+            >
+              <div className={`p-3 rounded-full ${
+                isAutoPlay ? 'bg-indigo-100' : 'bg-gray-100'
+              }`}>
+                <div className={`w-2 h-2 rounded-full ${isAutoPlay ? 'bg-indigo-500 animate-pulse' : 'bg-gray-300'}`}></div>
+              </div>
+              <span className="text-[10px] font-bold">{t.autoPlay}</span>
+            </button>
+          </div>
 
           {/* Main Mic */}
           <button
@@ -922,16 +911,39 @@ export default function App() {
             )}
           </button>
 
-          {/* Vision */}
-          <button 
-            onClick={() => setIsCameraOpen(true)}
-            className="flex flex-col items-center gap-1 text-gray-500 hover:text-indigo-600 transition-colors w-16"
-          >
-             <div className="p-3 bg-gray-100 rounded-full">
-               <CameraIcon />
-             </div>
-             <span className="text-[10px] font-bold">{t.visionButton}</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => setIsCameraOpen(true)}
+              className="flex flex-col items-center gap-1 text-gray-500 hover:text-indigo-600 transition-colors w-16"
+            >
+               <div className="p-3 bg-gray-100 rounded-full">
+                 <CameraIcon />
+               </div>
+               <span className="text-[10px] font-bold">{t.visionButton}</span>
+            </button>
+
+            <button 
+              onClick={() => setIsScrollLocked(!isScrollLocked)}
+              className={`flex flex-col items-center gap-1 transition-colors w-16 ${
+                isScrollLocked ? 'text-amber-600' : 'text-gray-500'
+              }`}
+            >
+              <div className={`p-3 rounded-full ${
+                isScrollLocked ? 'bg-amber-100' : 'bg-gray-100'
+              }`}>
+                {isScrollLocked ? (
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                ) : (
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+                  </svg>
+                )}
+              </div>
+              <span className="text-[10px] font-bold">{isScrollLocked ? '고정됨' : '자동'}</span>
+            </button>
+          </div>
       </div>
 
       <CameraView 

@@ -13,6 +13,7 @@ interface CameraViewProps {
 const CameraView: React.FC<CameraViewProps> = ({ isOpen, onClose, langA, langB, t }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const capturedBlobRef = useRef<Blob | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [result, setResult] = useState<VisionResult | null>(null);
@@ -29,17 +30,17 @@ const CameraView: React.FC<CameraViewProps> = ({ isOpen, onClose, langA, langB, 
     });
   };
 
-  const captureJpegBase64 = async (): Promise<string> => {
-    if (!videoRef.current || !canvasRef.current) return '';
+  const captureJpegBlob = async (): Promise<Blob | null> => {
+    if (!videoRef.current || !canvasRef.current) return null;
 
     const video = videoRef.current;
     const canvas = canvasRef.current;
     const context = canvas.getContext('2d');
-    if (!context) return '';
+    if (!context) return null;
 
     const srcW = video.videoWidth;
     const srcH = video.videoHeight;
-    if (!srcW || !srcH) return '';
+    if (!srcW || !srcH) return null;
 
     const MAX_DIMENSION = 1280;
     const scale = Math.min(1, MAX_DIMENSION / Math.max(srcW, srcH));
@@ -53,9 +54,51 @@ const CameraView: React.FC<CameraViewProps> = ({ isOpen, onClose, langA, langB, 
     const blob = await new Promise<Blob | null>((resolve) => {
       canvas.toBlob((b) => resolve(b), 'image/jpeg', 0.72);
     });
-    if (!blob) return '';
+    return blob;
+  };
 
-    return blobToBase64Data(blob);
+  const captureJpegBase64 = async (): Promise<{ base64: string; blob: Blob } | null> => {
+    const blob = await captureJpegBlob();
+    if (!blob) return null;
+    const base64 = await blobToBase64Data(blob);
+    return { base64, blob };
+  };
+
+  const shareCapturedImage = async (): Promise<void> => {
+    const blob = capturedBlobRef.current;
+    if (!blob) {
+      alert('먼저 사진을 찍어주세요.');
+      return;
+    }
+
+    const file = new File([blob], `global-classroom_${Date.now()}.jpg`, { type: 'image/jpeg' });
+    const navAny = navigator as any;
+
+    try {
+      if (typeof navAny.share === 'function') {
+        const canShareFiles = typeof navAny.canShare === 'function'
+          ? navAny.canShare({ files: [file] })
+          : true;
+
+        if (canShareFiles) {
+          await navAny.share({
+            files: [file],
+            title: 'Global Classroom',
+          });
+          return;
+        }
+      }
+    } catch {
+    }
+
+    const url = URL.createObjectURL(file);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = file.name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const postApi = async <T,>(path: string, payload: unknown): Promise<T> => {
@@ -104,6 +147,7 @@ const CameraView: React.FC<CameraViewProps> = ({ isOpen, onClose, langA, langB, 
       stream.getTracks().forEach(track => track.stop());
       setStream(null);
     }
+    capturedBlobRef.current = null;
     setResult(null);
   };
 
@@ -112,11 +156,12 @@ const CameraView: React.FC<CameraViewProps> = ({ isOpen, onClose, langA, langB, 
 
     setIsProcessing(true);
     try {
-      const base64Data = await captureJpegBase64();
-      if (!base64Data) {
+      const captured = await captureJpegBase64();
+      if (!captured?.base64) {
         throw new Error('이미지 캡처에 실패했습니다.');
       }
-      await analyzeImage(base64Data);
+      capturedBlobRef.current = captured.blob;
+      await analyzeImage(captured.base64);
     } catch (error) {
       console.error('Capture Error:', error);
       setResult({
@@ -181,9 +226,18 @@ const CameraView: React.FC<CameraViewProps> = ({ isOpen, onClose, langA, langB, 
               <h3 className="text-xs font-bold text-indigo-600 uppercase tracking-wider mb-1">{t.visionTranslated}</h3>
               <p className="text-indigo-900 text-xl font-medium leading-relaxed max-h-40 overflow-y-auto">{result.translatedText}</p>
             </div>
-            <button 
-              onClick={() => setResult(null)}
-              className="mt-6 w-full py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-colors"
+            <button
+              onClick={() => shareCapturedImage()}
+              className="mt-6 w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors"
+            >
+              Google Lens로 공유/열기
+            </button>
+            <button
+              onClick={() => {
+                capturedBlobRef.current = null;
+                setResult(null);
+              }}
+              className="mt-3 w-full py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-colors"
             >
               {t.visionRetake}
             </button>

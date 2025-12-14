@@ -49,6 +49,21 @@ const txDone = (tx: IDBTransaction): Promise<void> => {
   });
 };
 
+export const hasCachedAudio = async (id: string): Promise<boolean> => {
+  if (!id) return false;
+
+  try {
+    const db = await openDb();
+    const tx = db.transaction(STORE_NAME, 'readonly');
+    const store = tx.objectStore(STORE_NAME);
+    const key = await requestToPromise(store.getKey(id));
+    await txDone(tx);
+    return typeof key !== 'undefined';
+  } catch {
+    return false;
+  }
+};
+
 export const getCachedAudioBase64 = async (id: string): Promise<string | null> => {
   if (!id) return null;
 

@@ -1,5 +1,6 @@
 import { ConversationItem } from '../types';
 import { arrayBufferToBase64, base64ToUint8Array } from './audioUtils';
+import { getCachedAudioBase64 } from './idbAudioCache';
 
 // --- Helpers ---
 
@@ -475,6 +476,9 @@ export const restoreDriveSession = async (accessToken: string, sessionFolderId: 
   const manifestJson = await downloadDriveFileJson(accessToken, manifestFile.id);
   const items = Array.isArray(manifestJson?.items) ? manifestJson.items : [];
 
+  const manifestVoiceName = typeof manifestJson?.voiceName === 'string' ? manifestJson.voiceName : 'Kore';
+  const manifestTtsModel = typeof manifestJson?.ttsModel === 'string' ? manifestJson.ttsModel : 'gemini-2.5-flash-preview-tts';
+
   const byId = new Map(history.map((h) => [h.id, h] as const));
   let audioRestoredCount = 0;
   let audioFailedCount = 0;
@@ -485,6 +489,19 @@ export const restoreDriveSession = async (accessToken: string, sessionFolderId: 
     if (!id || !audioFileId) continue;
     const target = byId.get(id);
     if (!target) continue;
+
+    try {
+      const itemVoiceName = typeof item?.audio?.voiceName === 'string' ? item.audio.voiceName : manifestVoiceName;
+      const itemTtsModel = typeof item?.audio?.ttsModel === 'string' ? item.audio.ttsModel : manifestTtsModel;
+      const cacheKey = `${id}:${itemVoiceName}:${itemTtsModel}`;
+      const cached = await getCachedAudioBase64(cacheKey);
+      if (cached) {
+        target.audioBase64 = cached;
+        audioRestoredCount += 1;
+        continue;
+      }
+    } catch {
+    }
 
     try {
       const wavBuf = await downloadDriveFileArrayBuffer(accessToken, audioFileId);

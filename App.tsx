@@ -7,7 +7,7 @@ import {
   signInAsGuest 
 } from './utils/firebase';
 import { loadSessions, saveSessions, clearSessions } from './utils/localStorage';
-import { getCachedAudioBase64, setCachedAudioBase64, clearCachedAudio } from './utils/idbAudioCache';
+import { getCachedAudioBase64, hasCachedAudio, setCachedAudioBase64, clearCachedAudio } from './utils/idbAudioCache';
 import { 
   backupToDrive, 
   exportToDocs, 
@@ -665,7 +665,10 @@ export default function App() {
           for (const item of result.history || []) {
             if (item.audioBase64) {
               const cacheKey = `${item.id}:${voiceName}:${ttsModel}`;
-              await setCachedAudioBase64(cacheKey, item.audioBase64);
+              const exists = await hasCachedAudio(cacheKey);
+              if (!exists) {
+                await setCachedAudioBase64(cacheKey, item.audioBase64);
+              }
             }
           }
         }

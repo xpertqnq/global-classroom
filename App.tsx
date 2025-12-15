@@ -4,7 +4,9 @@ import { User, onAuthStateChanged } from 'firebase/auth';
 import {
   getAppAuth, 
   logOut, 
-  signInAsGuest 
+  signInAsGuest,
+  signInWithEmailPassword,
+  signUpWithEmailPassword
 } from './utils/firebase';
 import { loadSessions, saveSessions, clearSessions } from './utils/localStorage';
 import { getCachedAudioBase64, hasCachedAudio, setCachedAudioBase64, clearCachedAudio } from './utils/idbAudioCache';
@@ -32,6 +34,7 @@ import {
 import { createPcmBlob, decodeAudioData, base64ToUint8Array, arrayBufferToBase64 } from './utils/audioUtils';
 import Visualizer from './components/Visualizer';
 import CameraView from './components/CameraView';
+import AdminPanelModal from './components/AdminPanelModal';
 
 // --- Icons ---
 const MicIcon = () => <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>;
@@ -109,6 +112,7 @@ type AppSettings = {
 const SETTINGS_KEY = 'global_classroom_settings';
 const ACCESS_TOKEN_STORAGE_KEY = 'global_classroom_google_access_token';
 const GOOGLE_USER_STORAGE_KEY = 'global_classroom_google_user';
+const ADMIN_EMAIL = 'padiemipu@gmail.com';
 
 export default function App() {
   // --- UI Settings ---
@@ -147,6 +151,11 @@ export default function App() {
       return null;
     }
   }); 
+  const [emailAuthEmail, setEmailAuthEmail] = useState('');
+  const [emailAuthPassword, setEmailAuthPassword] = useState('');
+  const [emailAuthError, setEmailAuthError] = useState<string>('');
+  const [isEmailAuthBusy, setIsEmailAuthBusy] = useState(false);
+  const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
   const [isAuthReady, setIsAuthReady] = useState(true);
   const [history, setHistory] = useState<ConversationItem[]>([]);
   const [sessions, setSessions] = useState<ConversationSession[]>([]);
@@ -211,6 +220,10 @@ export default function App() {
   const sessionPromiseRef = useRef<Promise<any> | null>(null);
   const processorRef = useRef<ScriptProcessorNode | null>(null);
   const tokenClientRef = useRef<any>(null); // GIS Token Client
+  const isGuestSigningInRef = useRef(false);
+
+  const userEmail = typeof (user as any)?.email === 'string' ? String((user as any).email) : '';
+  const isAdmin = userEmail.toLowerCase() === ADMIN_EMAIL;
 
   useEffect(() => {
     try {
@@ -261,23 +274,7 @@ export default function App() {
 
   // 1. Initialize Auth on Mount
   useEffect(() => {
-    // A. Guest Auth (Firebase)
-    const initGuestAuth = async () => {
-      const auth = getAppAuth();
-      if (!auth.currentUser) {
-        try {
-          // If no user is logged in (and not Google logged in via memory state), try guest
-          if (!user) {
-             await signInAsGuest();
-          }
-        } catch (error) {
-          console.error('Anonymous sign in failed:', error);
-        }
-      }
-    };
-    const timer = setTimeout(initGuestAuth, 500); 
-
-    // B. Initialize GIS Client
+    // Initialize GIS Client
     // We check if google global is available (loaded via script in index.html)
     const checkGoogle = setInterval(() => {
        if (typeof google !== 'undefined' && google.accounts && google.accounts.oauth2) {
@@ -332,7 +329,6 @@ export default function App() {
     }, 500);
 
     return () => {
-      clearTimeout(timer);
       clearInterval(checkGoogle);
     };
   }, []); // Only on mount
@@ -346,6 +342,27 @@ export default function App() {
         if (accessToken && prev && !prev.isAnonymous) {
           return prev;
         }
+
+        if (!firebaseUser) {
+          if (!accessToken && (!prev || prev.isAnonymous) && !isGuestSigningInRef.current) {
+            isGuestSigningInRef.current = true;
+            signInAsGuest()
+              .then(() => {
+                const current = getAppAuth().currentUser;
+                if (current?.isAnonymous) {
+                  setUser(current);
+                }
+              })
+              .catch((error) => console.error('Anonymous sign in failed:', error))
+              .finally(() => {
+                isGuestSigningInRef.current = false;
+              });
+          }
+          return prev || null;
+        }
+
+        isGuestSigningInRef.current = false;
+
         return firebaseUser;
       });
     });
@@ -445,10 +462,82 @@ export default function App() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    if (!isAdmin) {
+      setIsAdminPanelOpen(false);
+    }
+  }, [isAdmin]);
+
 
   // --- Logic ---
+  const handleEmailLogin = async () => {
+    if (isEmailAuthBusy) return;
+    setEmailAuthError('');
+
+    const email = emailAuthEmail.trim();
+    const password = emailAuthPassword;
+    if (!email || !password) {
+      setEmailAuthError('이메일과 비밀번호를 입력해주세요.');
+      return;
+    }
+
+    setIsEmailAuthBusy(true);
+    try {
+      const firebaseUser = await signInWithEmailPassword(email, password);
+
+      setAccessToken(null);
+      try {
+        sessionStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
+        sessionStorage.removeItem(GOOGLE_USER_STORAGE_KEY);
+      } catch {
+      }
+
+      setUser(firebaseUser);
+      setIsLoginModalOpen(false);
+      setEmailAuthPassword('');
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setEmailAuthError(`로그인 실패: ${msg}`);
+    } finally {
+      setIsEmailAuthBusy(false);
+    }
+  };
+
+  const handleEmailSignUp = async () => {
+    if (isEmailAuthBusy) return;
+    setEmailAuthError('');
+
+    const email = emailAuthEmail.trim();
+    const password = emailAuthPassword;
+    if (!email || !password) {
+      setEmailAuthError('이메일과 비밀번호를 입력해주세요.');
+      return;
+    }
+
+    setIsEmailAuthBusy(true);
+    try {
+      const firebaseUser = await signUpWithEmailPassword(email, password);
+
+      setAccessToken(null);
+      try {
+        sessionStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
+        sessionStorage.removeItem(GOOGLE_USER_STORAGE_KEY);
+      } catch {
+      }
+
+      setUser(firebaseUser);
+      setIsLoginModalOpen(false);
+      setEmailAuthPassword('');
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setEmailAuthError(`가입 실패: ${msg}`);
+    } finally {
+      setIsEmailAuthBusy(false);
+    }
+  };
   
   const handleLoginSelection = async (type: 'google' | 'guest') => {
+    setEmailAuthError('');
     console.log('Login selection:', type);
     console.log('google object:', typeof google !== 'undefined' ? 'loaded' : 'not loaded');
     console.log('tokenClientRef.current:', tokenClientRef.current ? 'initialized' : 'not initialized');
@@ -488,6 +577,8 @@ export default function App() {
   };
 
   const handleLogout = async () => {
+    setIsAdminPanelOpen(false);
+    setEmailAuthError('');
     // 1. Clear GIS state
     if (accessToken) {
       // Ideally revoke token here using google.accounts.oauth2.revoke
@@ -1377,6 +1468,7 @@ export default function App() {
              <div className="relative" ref={profileMenuRef}>
                <button
                  onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+                 aria-label="프로필 메뉴"
                  className="flex items-center gap-2 bg-gray-50 rounded-full pl-1 pr-2 py-1 border border-gray-200 whitespace-nowrap hover:bg-gray-100 transition-colors"
                >
                    {user.photoURL ? (
@@ -1401,6 +1493,21 @@ export default function App() {
                        </svg>
                        설정
                    </button>
+
+                   {isAdmin && (
+                     <button
+                       onClick={() => {
+                         setIsProfileMenuOpen(false);
+                         setIsAdminPanelOpen(true);
+                       }}
+                       className="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-3 text-sm text-gray-700 font-medium border-b border-gray-50"
+                     >
+                       <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622C17.176 19.29 21 14.59 21 9c0-1.042-.133-2.052-.382-3.016z" />
+                       </svg>
+                       관리자 모드
+                     </button>
+                   )}
 
                    <button
                      onClick={() => {
@@ -1849,7 +1956,7 @@ export default function App() {
       {/* --- LOGIN MODAL --- */}
       {isLoginModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-           <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden flex flex-col p-6">
+           <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden flex flex-col p-6" role="dialog" aria-label="로그인">
               <div className="text-center mb-6">
                  <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-3 text-indigo-600">
                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" /></svg>
@@ -1872,6 +1979,48 @@ export default function App() {
                     </div>
                     <div className="absolute inset-0 border-2 border-transparent group-hover:border-blue-100 rounded-xl pointer-events-none"></div>
                  </button>
+
+                 <div className="border border-gray-100 rounded-xl p-4 bg-gray-50">
+                   <div className="text-xs font-bold text-gray-600 mb-2">이메일/비밀번호</div>
+                   <div className="space-y-2">
+                     <input
+                       value={emailAuthEmail}
+                       onChange={(e) => setEmailAuthEmail(e.target.value)}
+                       placeholder="이메일"
+                       autoComplete="email"
+                       className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm outline-none focus:border-indigo-300 bg-white"
+                     />
+                     <input
+                       type="password"
+                       value={emailAuthPassword}
+                       onChange={(e) => setEmailAuthPassword(e.target.value)}
+                       placeholder="비밀번호"
+                       autoComplete="current-password"
+                       className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm outline-none focus:border-indigo-300 bg-white"
+                     />
+
+                     {emailAuthError ? (
+                       <div className="text-xs text-red-600 whitespace-pre-wrap break-words">{emailAuthError}</div>
+                     ) : null}
+
+                     <div className="flex items-center gap-2 pt-1">
+                       <button
+                         disabled={isEmailAuthBusy}
+                         onClick={handleEmailLogin}
+                         className="flex-1 px-3 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40"
+                       >
+                         로그인
+                       </button>
+                       <button
+                         disabled={isEmailAuthBusy}
+                         onClick={handleEmailSignUp}
+                         className="flex-1 px-3 py-2 rounded-xl text-xs font-bold bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-40"
+                       >
+                         가입
+                       </button>
+                     </div>
+                   </div>
+                 </div>
 
                  {/* Guest Login Button */}
                  <button 
@@ -2173,6 +2322,16 @@ export default function App() {
         </div>
       )}
 
+      <AdminPanelModal
+        isOpen={isAdminPanelOpen && isAdmin}
+        onClose={() => setIsAdminPanelOpen(false)}
+        user={user}
+        accessToken={accessToken}
+        sessionsCount={sessions.length}
+        historyCount={history.length}
+      />
+
     </div>
   );
-}
+ }
+

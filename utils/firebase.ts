@@ -4,6 +4,8 @@ import {
   getAuth, 
   signOut,
   signInAnonymously,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
   Auth
 } from 'firebase/auth';
 
@@ -44,6 +46,18 @@ export const signInAsGuest = async () => {
     console.error("Guest login failed:", error);
     throw error;
   }
+};
+
+export const signUpWithEmailPassword = async (email: string, password: string) => {
+  const auth = getAppAuth();
+  const result = await createUserWithEmailAndPassword(auth, email, password);
+  return result.user;
+};
+
+export const signInWithEmailPassword = async (email: string, password: string) => {
+  const auth = getAppAuth();
+  const result = await signInWithEmailAndPassword(auth, email, password);
+  return result.user;
 };
 
 export const logOut = async () => {

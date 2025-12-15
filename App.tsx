@@ -1343,15 +1343,16 @@ export default function App() {
            {/* AUTH BUTTON */}
            {user ? (
              user.isAnonymous ? (
-               <div className="flex items-center gap-2 bg-gray-50 rounded-full pl-1 pr-3 py-1 border border-gray-200 whitespace-nowrap">
-                 <span className="text-xs text-gray-400 font-medium px-2">Guest</span>
-                 <button 
-                   onClick={() => setIsLoginModalOpen(true)}
-                   className="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors whitespace-nowrap"
-                 >
-                   {t.loginGoogle}
-                 </button>
-               </div>
+              <button
+                onClick={() => setIsLoginModalOpen(true)}
+                aria-label="로그인"
+                className="flex items-center gap-2 bg-gray-50 rounded-full px-3 py-1 border border-gray-200 whitespace-nowrap hover:bg-gray-100 transition-colors"
+              >
+                <span className="text-xs text-gray-500 font-medium">Guest</span>
+                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
              ) : (
                <div className="relative" ref={profileMenuRef}>
                  <button

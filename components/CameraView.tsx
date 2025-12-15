@@ -4,7 +4,7 @@ import { TranslationMap } from '../types';
 interface CameraViewProps {
   isOpen: boolean;
   onClose: () => void;
-  onCaptured: (payload: { base64Image: string; blob: Blob }) => void;
+  onCaptured: (payload: { blob: Blob }) => void;
   t: TranslationMap;
 }
 
@@ -13,18 +13,6 @@ const CameraView: React.FC<CameraViewProps> = ({ isOpen, onClose, onCaptured, t 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-
-  const blobToBase64Data = async (blob: Blob): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const dataUrl = typeof reader.result === 'string' ? reader.result : '';
-        resolve(dataUrl.split(',')[1] || '');
-      };
-      reader.onerror = () => reject(reader.error || new Error('이미지 변환에 실패했습니다.'));
-      reader.readAsDataURL(blob);
-    });
-  };
 
   const captureJpegBlob = async (): Promise<Blob | null> => {
     if (!videoRef.current || !canvasRef.current) return null;
@@ -51,13 +39,6 @@ const CameraView: React.FC<CameraViewProps> = ({ isOpen, onClose, onCaptured, t 
       canvas.toBlob((b) => resolve(b), 'image/jpeg', 0.72);
     });
     return blob;
-  };
-
-  const captureJpegBase64 = async (): Promise<{ base64: string; blob: Blob } | null> => {
-    const blob = await captureJpegBlob();
-    if (!blob) return null;
-    const base64 = await blobToBase64Data(blob);
-    return { base64, blob };
   };
 
   useEffect(() => {
@@ -100,12 +81,13 @@ const CameraView: React.FC<CameraViewProps> = ({ isOpen, onClose, onCaptured, t 
 
     setIsProcessing(true);
     try {
-      const captured = await captureJpegBase64();
-      if (!captured?.base64) {
+      const blob = await captureJpegBlob();
+      if (!blob) {
         throw new Error('이미지 캡처에 실패했습니다.');
       }
-      onCaptured({ base64Image: captured.base64, blob: captured.blob });
       onClose();
+
+      onCaptured({ blob });
     } catch (error) {
       console.error('Capture Error:', error);
       alert(t.visionError);

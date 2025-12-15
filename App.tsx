@@ -131,7 +131,7 @@ export default function App() {
   // We use `any` here to support both Firebase User (Guest) and our custom Google User object
   const [user, setUser] = useState<User | any | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null); 
-  const [isAuthReady, setIsAuthReady] = useState(false);
+  const [isAuthReady, setIsAuthReady] = useState(true);
   const [history, setHistory] = useState<ConversationItem[]>([]);
   const [sessions, setSessions] = useState<ConversationSession[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string>('');
@@ -655,6 +655,18 @@ export default function App() {
     }
   };
 
+  const blobToBase64Data = async (blob: Blob): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const dataUrl = typeof reader.result === 'string' ? reader.result : '';
+        resolve(dataUrl.split(',')[1] || '');
+      };
+      reader.onerror = () => reject(reader.error || new Error('이미지 변환에 실패했습니다.'));
+      reader.readAsDataURL(blob);
+    });
+  };
+
   const openVisionNotification = (id: string) => {
     setActiveVisionNotificationId(id);
     setIsNotificationMenuOpen(false);
@@ -662,7 +674,7 @@ export default function App() {
     dismissVisionToast(id);
   };
 
-  const handleVisionCaptured = (payload: { base64Image: string; blob: Blob }) => {
+  const handleVisionCaptured = (payload: { blob: Blob }) => {
     const createdAt = Date.now();
     const id = `vision_${createdAt}_${Math.random().toString(16).slice(2)}`;
     const langA = langInputRef.current.code;
@@ -679,12 +691,18 @@ export default function App() {
 
     setVisionNotifications((prev) => [item, ...prev]);
 
-    postApi<VisionResult>('vision', {
-      base64Image: payload.base64Image,
-      langA,
-      langB,
-      model: MODEL_VISION,
-    })
+    blobToBase64Data(payload.blob)
+      .then((base64Image) => {
+        if (!base64Image) {
+          throw new Error('이미지 변환에 실패했습니다.');
+        }
+        return postApi<VisionResult>('vision', {
+          base64Image,
+          langA,
+          langB,
+          model: MODEL_VISION,
+        });
+      })
       .then((result) => {
         setVisionNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, status: 'done', result } : n)));
         enqueueVisionToast(id);

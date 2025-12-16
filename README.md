@@ -286,6 +286,17 @@ npm install
 npm run dev
 ```
 
+> 참고: `npm run dev`는 기본적으로 **프론트엔드(Vite)만** 실행합니다.
+> `/api/*`(Netlify Functions)까지 로컬에서 함께 테스트하려면 Netlify Dev를 사용하세요.
+
+```bash
+# Netlify CLI 설치(1회)
+npm i -g netlify-cli
+
+# 프론트 + Functions 함께 실행
+netlify dev
+```
+
 ### 빌드
 
 ```bash
@@ -306,10 +317,29 @@ npm run build
 ### 클라이언트(Vite)
 
 - `VITE_GOOGLE_CLIENT_ID`
+- `VITE_SENTRY_DSN` (선택)
 
 ### Netlify(서버 함수)
 
 - `GEMINI_API_KEY`
+
+### 테스트(Playwright)
+
+- `PLAYWRIGHT_BASE_URL` (선택)
+  - 미설정 시 기본값: `http://127.0.0.1:3000` (Playwright가 `npm run dev`를 자동 실행)
+  - 배포 환경을 대상으로 테스트하려면 예: `PLAYWRIGHT_BASE_URL=https://7-global-classroom.netlify.app`
+- `ADMIN_EMAIL`, `ADMIN_PASSWORD` (선택)
+  - 관리자 E2E 테스트를 실행할 때 필요합니다.
+
+## 테스트
+
+### E2E(Playwright)
+
+```bash
+npx playwright test
+```
+
+관리자 모드 테스트는 `ADMIN_EMAIL/ADMIN_PASSWORD`가 없으면 자동으로 skip 됩니다.
 
 ## 배포(Netlify)
 
@@ -323,6 +353,7 @@ Netlify 환경변수에 아래 값을 설정합니다.
 
 - `GEMINI_API_KEY`
 - `VITE_GOOGLE_CLIENT_ID`
+- `VITE_SENTRY_DSN` (선택)
 
 ## Google OAuth / API 설정
 

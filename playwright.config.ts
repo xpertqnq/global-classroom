@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'https://7-global-classroom.netlify.app';
+const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://127.0.0.1:3000';
+const shouldStartServer = !process.env.PLAYWRIGHT_BASE_URL;
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -9,6 +10,14 @@ export default defineConfig({
     timeout: 10 * 1000,
   },
   reporter: [['list'], ['html', { open: 'never' }]],
+  webServer: shouldStartServer
+    ? {
+        command: 'npm run dev',
+        url: baseURL,
+        reuseExistingServer: true,
+        timeout: 120 * 1000,
+      }
+    : undefined,
   use: {
     baseURL,
     headless: true,

@@ -1240,6 +1240,7 @@ export default function App() {
     try {
       const isRetry = opts?.isRetry === true;
       if (!isRetry) {
+        setErrorMessage('');
         geminiMicDesiredRef.current = true;
         geminiReconnectAttemptRef.current = 0;
       }
@@ -1269,6 +1270,7 @@ export default function App() {
       if (!tokenData?.token) {
         setStatus(ConnectionStatus.ERROR);
         setIsMicOn(false);
+        setErrorMessage('토큰 발급 실패');
         geminiMicDesiredRef.current = false;
         if (isCurrentAttempt()) isGeminiConnectingRef.current = false;
         return;
@@ -1349,6 +1351,7 @@ export default function App() {
               return;
             }
             console.log("Gemini Live Connected");
+            setErrorMessage('');
             geminiReconnectAttemptRef.current = 0;
             if (geminiReconnectTimeoutRef.current) {
               window.clearTimeout(geminiReconnectTimeoutRef.current);
@@ -1486,6 +1489,8 @@ export default function App() {
         return;
       }
       console.error("Connection setup failed:", error);
+      const msg = error instanceof Error ? error.message : String(error);
+      setErrorMessage(msg);
       cleanupAudio();
       setStatus(ConnectionStatus.ERROR);
       setIsMicOn(false);
@@ -1941,12 +1946,55 @@ export default function App() {
                   onClick={toggleMic}
                   className="mt-6 px-5 py-2.5 rounded-full bg-indigo-600 text-white text-sm font-bold shadow-md hover:bg-indigo-700 transition-colors active:scale-95"
                 >
-                  {t.statusStandby}
+                  {status === ConnectionStatus.CONNECTING
+                    ? t.connecting
+                    : status === ConnectionStatus.ERROR
+                      ? t.retry
+                      : t.statusStandby}
                 </button>
              </div>
            )}
 
            <div className="flex flex-col gap-4">
+             {(status === ConnectionStatus.CONNECTING || status === ConnectionStatus.ERROR) && (
+               <div
+                 className={`px-4 py-3 rounded-xl border shadow-sm flex items-start justify-between gap-3 ${
+                   status === ConnectionStatus.ERROR
+                     ? 'bg-red-50 border-red-200'
+                     : 'bg-indigo-50 border-indigo-100'
+                 }`}
+               >
+                 <div className="min-w-0 flex-1">
+                   <div
+                     className={`text-xs font-bold flex items-center gap-2 ${
+                       status === ConnectionStatus.ERROR ? 'text-red-700' : 'text-indigo-700'
+                     }`}
+                   >
+                     {status === ConnectionStatus.CONNECTING && (
+                       <div className="w-4 h-4 border-2 border-indigo-300 border-t-indigo-700 rounded-full animate-spin" />
+                     )}
+                     <span>
+                       {status === ConnectionStatus.CONNECTING ? t.connecting : t.connectionError}
+                     </span>
+                   </div>
+                   {status === ConnectionStatus.ERROR && !!errorMessage && (
+                     <div className="mt-1 text-xs text-red-700/80 break-words">{errorMessage}</div>
+                   )}
+                 </div>
+                 {status === ConnectionStatus.ERROR && (
+                   <button
+                     onClick={() => {
+                       setErrorMessage('');
+                       connectToGemini();
+                     }}
+                     className="shrink-0 px-3 py-1.5 rounded-full bg-red-600 text-white text-xs font-bold hover:bg-red-700 transition-colors"
+                   >
+                     {t.retry}
+                   </button>
+                 )}
+               </div>
+             )}
+
              {hiddenHistoryCount > 0 && (
                <div className="flex justify-center">
                  <button

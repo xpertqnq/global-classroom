@@ -141,6 +141,11 @@ test('카메라 촬영 후 즉시 닫히고 텍스트 없음도 토스트 표시
   await expect(cameraClose).toBeVisible({ timeout: 10000 });
 
   await page.getByRole('button', { name: '촬영', exact: true }).click();
+
+  await expect(page.getByText('촬영 완료')).toBeVisible({ timeout: 10000 });
+  await expect(page.getByRole('button', { name: '원래 페이지로 돌아가기' })).toBeVisible({ timeout: 10000 });
+
+  await page.getByRole('button', { name: '원래 페이지로 돌아가기' }).click();
   await expect(cameraClose).toHaveCount(0);
 
   await expect(page.getByText('텍스트 없음')).toBeVisible({ timeout: 10000 });

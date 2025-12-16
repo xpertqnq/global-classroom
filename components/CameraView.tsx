@@ -14,6 +14,7 @@ const CameraView: React.FC<CameraViewProps> = ({ isOpen, onClose, onCaptured, t 
   const [stream, setStream] = useState<MediaStream | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isLeaveConfirmOpen, setIsLeaveConfirmOpen] = useState(false);
   const mountedRef = useRef(false);
 
   const captureJpegBlob = async (onAfterDraw?: () => void): Promise<Blob | null> => {
@@ -62,6 +63,7 @@ const CameraView: React.FC<CameraViewProps> = ({ isOpen, onClose, onCaptured, t 
   };
 
   const handleClose = () => {
+    setIsLeaveConfirmOpen(false);
     stopCamera();
     onClose();
   };
@@ -104,9 +106,12 @@ const CameraView: React.FC<CameraViewProps> = ({ isOpen, onClose, onCaptured, t 
 
     setIsProcessing(true);
     try {
-      const blob = await captureJpegBlob(handleClose);
+      const blob = await captureJpegBlob();
       if (!blob) {
         throw new Error('이미지 캡처에 실패했습니다.');
+      }
+      if (mountedRef.current) {
+        setIsLeaveConfirmOpen(true);
       }
       onCaptured({ blob });
     } catch (error) {
@@ -152,6 +157,42 @@ const CameraView: React.FC<CameraViewProps> = ({ isOpen, onClose, onCaptured, t 
             </div>
           </div>
         )}
+
+        {isLeaveConfirmOpen && (
+          <div className="absolute inset-0 bg-black/70 flex items-center justify-center z-30 p-6">
+            <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden">
+              <div className="px-5 py-4 border-b border-gray-100 bg-gray-50">
+                <div className="text-sm font-bold text-gray-900">촬영 완료</div>
+                <div className="mt-1 text-xs text-gray-500">
+                  분석/번역 처리에는 시간이 걸릴 수 있습니다. 지금 원래 화면으로 돌아가도 처리는 계속되며,
+                  완료되면 알림으로 확인할 수 있습니다.
+                </div>
+              </div>
+
+              <div className="p-5 space-y-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsLeaveConfirmOpen(false);
+                  }}
+                  className="w-full px-4 py-3 rounded-xl bg-indigo-600 text-white text-sm font-bold hover:bg-indigo-700 transition-colors"
+                >
+                  계속 대기(카메라 유지)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsLeaveConfirmOpen(false);
+                    handleClose();
+                  }}
+                  className="w-full px-4 py-3 rounded-xl bg-gray-100 text-gray-800 text-sm font-bold hover:bg-gray-200 transition-colors"
+                >
+                  원래 페이지로 돌아가기
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Controls */}
@@ -159,7 +200,7 @@ const CameraView: React.FC<CameraViewProps> = ({ isOpen, onClose, onCaptured, t 
         <button 
           onClick={handleCapture}
           aria-label="촬영"
-          disabled={isProcessing}
+          disabled={isProcessing || isLeaveConfirmOpen}
           className="w-20 h-20 rounded-full border-[5px] border-white flex items-center justify-center group active:scale-95 transition-transform"
         >
           <div className="w-16 h-16 bg-white rounded-full group-hover:scale-90 transition-transform shadow-inner"></div>

@@ -29,6 +29,7 @@ export interface ConversationItem {
   timestamp: number;
   audioBase64?: string; // Cache for TTS audio (in-memory)
   audioUrl?: string; // Firebase Storage URL
+  updatedAt?: number;
 }
 
 export interface ConversationSession {
@@ -94,4 +95,24 @@ export interface TranslationMap {
   loginGoogleDesc: string;
   loginGuest: string;
   loginGuestDesc: string;
+  copySuccess: string;
+  noAudioToExport: string;
+  downloadCombinedAudio: string;
+}
+
+export type VisionNotificationStatus = 'processing' | 'done' | 'error';
+
+export interface VisionNotification {
+  id: string;
+  timestamp: number;
+  status: VisionNotificationStatus;
+  isRead: boolean;
+  result?: VisionResult;
+  error?: string;
+}
+
+export interface AppSettings {
+  driveBackupMode: 'manual' | 'auto';
+  audioCacheEnabled: boolean;
+  recordOriginalEnabled: boolean;
 }

@@ -33,6 +33,13 @@ export const SUPPORTED_LANGUAGES: Language[] = [
   { code: 'uz', name: 'Oʻzbek (Uzbek)', flag: '🇺🇿' },
 ];
 
+export const GOOGLE_USER_STORAGE_KEY = 'google_user';
+export const ACCESS_TOKEN_STORAGE_KEY = 'google_access_token';
+export const SETTINGS_KEY = 'global_class_settings';
+export const UI_LANG_KEY = 'global_class_ui_lang';
+export const ADMIN_EMAIL = 'limonelist@gmail.com';
+export const HISTORY_RENDER_STEP = 50;
+
 export const VOICE_OPTIONS: VoiceOption[] = [
   { name: 'Kore', label: 'Kore', gender: 'Female', style: 'Calm' },
   { name: 'Puck', label: 'Puck', gender: 'Male', style: 'Deep' },
@@ -92,6 +99,9 @@ export const TRANSLATIONS: Record<string, TranslationMap> = {
     loginGoogleDesc: "Classroom, Docs, Drive 기능을 사용합니다.",
     loginGuest: "게스트로 계속하기",
     loginGuestDesc: "기록을 기기에만 저장합니다.",
+    copySuccess: "복사되었습니다.",
+    noAudioToExport: "재생 가능한 오디오 데이터가 없습니다.",
+    downloadCombinedAudio: "전체 음성 다운로드",
   },
   en: {
     appTitle: "Global Class",
@@ -138,6 +148,9 @@ export const TRANSLATIONS: Record<string, TranslationMap> = {
     loginGoogleDesc: "Enable Classroom, Docs, and Drive features.",
     loginGuest: "Continue as Guest",
     loginGuestDesc: "Save transcripts locally only.",
+    copySuccess: "Copied to clipboard.",
+    noAudioToExport: "No playable audio data found.",
+    downloadCombinedAudio: "Download Combined Audio",
   },
   ja: {
     appTitle: "グローバル教室",
@@ -183,7 +196,10 @@ export const TRANSLATIONS: Record<string, TranslationMap> = {
     loginGoogle: "Googleでログイン",
     loginGoogleDesc: "Classroom, Docs, Drive機能を使用します。",
     loginGuest: "ゲストとして続行",
-    loginGuestDesc: "履歴をデバイスにのみ保存します。",
+    loginGuestDesc: "履歴をデバイスにのみ保存합니다.",
+    copySuccess: "コピーされました。",
+    noAudioToExport: "再生可能なオー디오データがありません。",
+    downloadCombinedAudio: "音声を一括ダウンロード",
   },
   zh: {
     appTitle: "全球课堂",
@@ -230,6 +246,9 @@ export const TRANSLATIONS: Record<string, TranslationMap> = {
     loginGoogleDesc: "使用 Classroom、Docs 和 Drive 功能。",
     loginGuest: "以访客身份继续",
     loginGuestDesc: "仅将记录保存在本地。",
+    copySuccess: "已复制到剪贴板。",
+    noAudioToExport: "未找到可播放的音频数据。",
+    downloadCombinedAudio: "下载合并音频",
   },
   vi: {
     appTitle: "Lớp Học Toàn Cầu",
@@ -276,6 +295,9 @@ export const TRANSLATIONS: Record<string, TranslationMap> = {
     loginGoogleDesc: "Sử dụng tính năng Classroom, Docs, Drive.",
     loginGuest: "Tiếp tục với tư cách Khách",
     loginGuestDesc: "Chỉ lưu lịch sử trên thiết bị này.",
+    copySuccess: "Đã sao chép vào bộ nhớ tạm.",
+    noAudioToExport: "Không tìm thấy dữ liệu âm thanh để phát.",
+    downloadCombinedAudio: "Tải xuống âm thanh hợp nhất",
   },
   es: {
     appTitle: "Clase Global",
@@ -322,6 +344,9 @@ export const TRANSLATIONS: Record<string, TranslationMap> = {
     loginGoogleDesc: "Usar funciones de Classroom, Docs y Drive.",
     loginGuest: "Continuar como invitado",
     loginGuestDesc: "Guardar historial solo localmente.",
+    copySuccess: "Copiado al portapapeles.",
+    noAudioToExport: "No se encontraron datos de audio reproducibles.",
+    downloadCombinedAudio: "Descargar audio combinado",
   }
 };
 

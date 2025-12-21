@@ -23,7 +23,7 @@ export default function NotebookLMGuide({ isOpen, onClose }: NotebookLMGuideProp
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 p-1 bg-white rounded-full shadow-sm transition-colors"
+            className="text-gray-400 hover:text-indigo-600 p-1 bg-white rounded-full shadow-sm hover:shadow-md transition-all active:scale-95"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -42,7 +42,7 @@ export default function NotebookLMGuide({ isOpen, onClose }: NotebookLMGuideProp
 
           <section className="space-y-6">
             <h3 className="font-bold text-gray-900 border-l-4 border-blue-500 pl-3">연동 단계 (3단계)</h3>
-            
+
             <div className="space-y-6">
               <div className="flex gap-4">
                 <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm shadow-md">1</div>
@@ -57,9 +57,9 @@ export default function NotebookLMGuide({ isOpen, onClose }: NotebookLMGuideProp
                 <div>
                   <h4 className="font-bold text-gray-800 mb-1">NotebookLM 접속</h4>
                   <p className="text-sm text-gray-600 mb-2">Google NotebookLM 사이트에 접속하세요.</p>
-                  <a 
-                    href="https://notebooklm.google.com" 
-                    target="_blank" 
+                  <a
+                    href="https://notebooklm.google.com"
+                    target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center text-xs font-bold text-blue-600 hover:underline bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100"
                   >
@@ -97,7 +97,7 @@ export default function NotebookLMGuide({ isOpen, onClose }: NotebookLMGuideProp
         <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
           <button
             onClick={onClose}
-            className="w-full py-3 bg-gray-900 text-white rounded-xl font-bold hover:bg-gray-800 transition-colors shadow-lg active:scale-[0.98]"
+            className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg hover:shadow-indigo-200 active:scale-95"
           >
             확인했습니다
           </button>

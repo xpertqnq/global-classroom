@@ -115,6 +115,7 @@ type VisionNotification = {
 type AppSettings = {
   driveBackupMode: 'manual' | 'auto';
   audioCacheEnabled: boolean;
+  recordOriginalEnabled: boolean;
 };
 
 const SETTINGS_KEY = 'global_classroom_settings';
@@ -207,19 +208,26 @@ export default function App() {
     try {
       const raw = localStorage.getItem(SETTINGS_KEY);
       if (!raw) {
-        return { driveBackupMode: 'manual', audioCacheEnabled: true };
+        return { driveBackupMode: 'manual', audioCacheEnabled: true, recordOriginalEnabled: true };
       }
       const parsed = JSON.parse(raw) as Partial<AppSettings>;
       return {
         driveBackupMode: parsed.driveBackupMode === 'auto' ? 'auto' : 'manual',
         audioCacheEnabled: typeof parsed.audioCacheEnabled === 'boolean' ? parsed.audioCacheEnabled : true,
+        recordOriginalEnabled: typeof parsed.recordOriginalEnabled === 'boolean' ? parsed.recordOriginalEnabled : true,
       };
     } catch {
-      return { driveBackupMode: 'manual', audioCacheEnabled: true };
+      return { driveBackupMode: 'manual', audioCacheEnabled: true, recordOriginalEnabled: true };
     }
   });
   const [courses, setCourses] = useState<any[]>([]);
   const [isLoadingCourses, setIsLoadingCourses] = useState(false);
+
+  // --- Phase 2: Media & Edit ---
+  const [isRecordingOriginal, setIsRecordingOriginal] = useState(false);
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [editOriginalText, setEditOriginalText] = useState('');
+  const [editTranslatedText, setEditTranslatedText] = useState('');
 
   const exportMenuRef = useRef<HTMLDivElement>(null);
   const profileMenuRef = useRef<HTMLDivElement>(null);
@@ -239,6 +247,10 @@ export default function App() {
   const connectToGeminiRef = useRef<(opts?: { isRetry?: boolean }) => Promise<void>>(async () => { });
   const tokenClientRef = useRef<any>(null); // GIS Token Client
   const isGuestSigningInRef = useRef(false);
+
+  // --- Phase 2 Refs ---
+  const originalMediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const originalAudioChunksRef = useRef<Blob[]>([]);
 
   const userEmail = typeof (user as any)?.email === 'string' ? String((user as any).email) : '';
   const isAdmin = userEmail.toLowerCase() === ADMIN_EMAIL;
@@ -1253,6 +1265,102 @@ export default function App() {
     }
   };
 
+  const startEditing = useCallback((item: ConversationItem) => {
+    setEditingItemId(item.id);
+    setEditOriginalText(item.original);
+    setEditTranslatedText(item.translated);
+  }, []);
+
+  const handleSaveEdit = useCallback((id: string) => {
+    setHistory(prev => prev.map(item => {
+      if (item.id === id) {
+        return {
+          ...item,
+          original: editOriginalText,
+          translated: editTranslatedText,
+          updatedAt: Date.now()
+        };
+      }
+      return item;
+    }));
+    setEditingItemId(null);
+  }, [editOriginalText, editTranslatedText, setHistory]);
+
+  const handleMergeWithAbove = useCallback((id: string) => {
+    setHistory(prev => {
+      const idx = prev.findIndex(item => item.id === id);
+      if (idx <= 0) return prev;
+      const current = prev[idx];
+      const above = prev[idx - 1];
+      const merged: ConversationItem = {
+        ...above,
+        original: above.original + ' ' + current.original,
+        translated: (above.translated || '') + ' ' + (current.translated || ''),
+        updatedAt: Date.now(),
+      };
+      const next = [...prev];
+      next.splice(idx - 1, 2, merged);
+      return next;
+    });
+  }, [setHistory]);
+
+  const handleSplitItem = useCallback((id: string, originalSplitIdx: number, translatedSplitIdx: number) => {
+    setHistory(prev => {
+      const idx = prev.findIndex(item => item.id === id);
+      if (idx === -1) return prev;
+      const current = prev[idx];
+
+      const item1: ConversationItem = {
+        ...current,
+        id: crypto.randomUUID(),
+        original: current.original.substring(0, originalSplitIdx).trim(),
+        translated: current.translated.substring(0, translatedSplitIdx).trim(),
+        updatedAt: Date.now(),
+      };
+      const item2: ConversationItem = {
+        ...current,
+        id: crypto.randomUUID(),
+        original: current.original.substring(originalSplitIdx).trim(),
+        translated: current.translated.substring(translatedSplitIdx).trim(),
+        updatedAt: Date.now(),
+      };
+
+      const next = [...prev];
+      next.splice(idx, 1, item1, item2);
+      return next;
+    });
+    setEditingItemId(null);
+  }, [setHistory]);
+
+  const startOriginalRecording = useCallback((stream: MediaStream) => {
+    if (!settings.recordOriginalEnabled) return;
+    try {
+      const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      originalAudioChunksRef.current = [];
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          originalAudioChunksRef.current.push(e.data);
+        }
+      };
+      recorder.onstop = () => {
+        console.log('Original recording stopped. Chunks:', originalAudioChunksRef.current.length);
+      };
+      recorder.start();
+      originalMediaRecorderRef.current = recorder;
+      setIsRecordingOriginal(true);
+    } catch (err) {
+      console.error('Failed to start original recording:', err);
+    }
+  }, [settings.recordOriginalEnabled]);
+
+  const stopOriginalRecording = useCallback(() => {
+    if (originalMediaRecorderRef.current && originalMediaRecorderRef.current.state !== 'inactive') {
+      originalMediaRecorderRef.current.stop();
+      originalMediaRecorderRef.current = null;
+    }
+    setIsRecordingOriginal(false);
+  }, []);
+
   const connectToGemini = useCallback(async (opts?: { isRetry?: boolean }) => {
     let connectId = 0;
     const isCurrentAttempt = () => geminiConnectIdRef.current === connectId;
@@ -1404,6 +1512,9 @@ export default function App() {
               visSource.connect(visGain);
               visGain.connect(analyserNode);
 
+              // --- Phase 2: Start Original Recording ---
+              startOriginalRecording(stream);
+
               const processor = inputAudioContextRef.current.createScriptProcessor(4096, 1, 1);
               processorRef.current = processor;
 
@@ -1551,6 +1662,7 @@ export default function App() {
         sessionPromiseRef.current.then(session => session.close());
       }
       cleanupAudio();
+      stopOriginalRecording();
       setStatus(ConnectionStatus.DISCONNECTED);
       setIsMicOn(false);
     } else {
@@ -1608,7 +1720,7 @@ export default function App() {
             <button
               onClick={handleNewConversation}
               aria-label="새 대화"
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-full shadow-sm hover:bg-gray-50 transition-colors text-xs font-bold text-gray-600 whitespace-nowrap"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-full shadow-sm hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-600 hover:shadow-md transition-all active:scale-95 text-xs font-bold text-gray-600 whitespace-nowrap"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -1619,7 +1731,7 @@ export default function App() {
             <button
               onClick={handleOpenHistory}
               aria-label="이전 히스토리"
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-full shadow-sm hover:bg-gray-50 transition-colors text-xs font-bold text-gray-600 whitespace-nowrap"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-full shadow-sm hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-600 hover:shadow-md transition-all active:scale-95 text-xs font-bold text-gray-600 whitespace-nowrap"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -1633,7 +1745,7 @@ export default function App() {
                 onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
                 aria-label={t.exportMenu}
                 disabled={isExporting}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-full shadow-sm hover:bg-gray-50 transition-colors text-xs font-bold text-gray-600 whitespace-nowrap"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-full shadow-sm hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-600 hover:shadow-md transition-all active:scale-95 text-xs font-bold text-gray-600 whitespace-nowrap"
               >
                 {isExporting ? (
                   <div className="w-4 h-4 border-2 border-indigo-200 border-t-indigo-500 rounded-full animate-spin"></div>
@@ -1671,7 +1783,7 @@ export default function App() {
               <button
                 onClick={() => setIsNotificationMenuOpen(!isNotificationMenuOpen)}
                 aria-label="알림"
-                className="relative flex items-center justify-center w-9 h-9 bg-white border border-gray-200 rounded-full shadow-sm hover:bg-gray-50 transition-colors"
+                className="relative flex items-center justify-center w-9 h-9 bg-white border border-gray-200 rounded-full shadow-sm hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-600 hover:shadow-md transition-all active:scale-95"
               >
                 <BellIcon />
                 {unreadVisionCount > 0 && (
@@ -1713,21 +1825,21 @@ export default function App() {
                           <button
                             key={n.id}
                             onClick={() => openVisionNotification(n.id)}
-                            className="w-full text-left px-4 py-3 hover:bg-gray-50 flex flex-col gap-1 border-b border-gray-50 last:border-0"
+                            className="w-full text-left px-4 py-3 hover:bg-indigo-50 hover:shadow-inner flex flex-col gap-1 border-b border-gray-50 last:border-0 transition-all group"
                           >
                             <div className="flex items-center justify-between gap-2">
                               <div className="flex items-center gap-2 min-w-0">
                                 {!n.isRead && n.status !== 'processing' ? (
-                                  <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
+                                  <span className="w-2 h-2 rounded-full bg-red-500 shrink-0 animate-pulse" />
                                 ) : (
                                   <span className="w-2 h-2 rounded-full bg-transparent shrink-0" />
                                 )}
-                                <div className="text-xs font-bold text-gray-700 truncate">{t.visionTitle}</div>
+                                <div className="text-xs font-bold text-gray-700 truncate group-hover:text-indigo-700 transition-colors">{t.visionTitle}</div>
                               </div>
                               <div className={`text-[10px] font-bold shrink-0 ${statusClass}`}>{statusLabel}</div>
                             </div>
                             {snippet ? (
-                              <div className="text-[11px] text-gray-500 whitespace-pre-wrap break-words">{snippet}</div>
+                              <div className="text-[11px] text-gray-500 whitespace-pre-wrap break-words line-clamp-2 group-hover:text-gray-600 transition-colors">{snippet}</div>
                             ) : null}
                           </button>
                         );
@@ -1744,7 +1856,7 @@ export default function App() {
                 <button
                   onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
                   aria-label="프로필 메뉴"
-                  className="flex items-center gap-2 bg-gray-50 rounded-full pl-1 pr-2 py-1 border border-gray-200 whitespace-nowrap hover:bg-gray-100 transition-colors"
+                  className="flex items-center gap-2 bg-gray-50 rounded-full pl-1 pr-2 py-1 border border-gray-200 whitespace-nowrap hover:bg-white hover:border-indigo-200 hover:shadow-md transition-all active:scale-95"
                 >
                   {user.photoURL ? (
                     <img src={user.photoURL} alt="Profile" className="w-7 h-7 rounded-full" />
@@ -1803,7 +1915,7 @@ export default function App() {
               <button
                 onClick={() => setIsLoginModalOpen(true)}
                 aria-label="로그인"
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-full shadow-sm hover:bg-gray-50 transition-colors text-xs font-bold text-indigo-600 whitespace-nowrap"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 border border-indigo-700 rounded-full shadow-md hover:bg-indigo-700 hover:shadow-lg transition-all active:scale-95 text-xs font-bold text-white whitespace-nowrap"
               >
                 {uiLangCode === 'ko' ? '로그인' : 'Login'}
               </button>
@@ -1813,8 +1925,8 @@ export default function App() {
 
         <div className="flex items-center justify-between gap-2">
           {/* Voice Selector */}
-          <div className="flex items-center bg-gray-100 rounded-full px-3 py-1.5 border border-gray-200">
-            <span className="text-[10px] text-gray-500 font-bold mr-2 uppercase tracking-wide whitespace-nowrap">{t.voiceLabel}</span>
+          <div className="flex items-center bg-gray-100 rounded-full px-3 py-1.5 border border-gray-200 hover:bg-white hover:border-indigo-200 hover:shadow-sm transition-all group">
+            <span className="text-[10px] text-gray-500 font-bold mr-2 uppercase tracking-wide whitespace-nowrap group-hover:text-indigo-500 transition-colors">{t.voiceLabel}</span>
             <select
               value={selectedVoice.name}
               onChange={(e) => {
@@ -1832,17 +1944,19 @@ export default function App() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setIsOutputOnly(!isOutputOnly)}
-              className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-colors whitespace-nowrap ${isOutputOnly
-                ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
-                : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
+              className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all active:scale-95 shadow-sm whitespace-nowrap ${isOutputOnly
+                ? 'bg-indigo-600 border-indigo-700 text-white hover:bg-indigo-700 hover:shadow-md'
+                : 'bg-white border-gray-200 text-gray-500 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-600 hover:shadow-md'
                 }`}
             >
               출력만
             </button>
 
             {/* UI Language */}
-            <div className="flex items-center gap-1 bg-white rounded-full px-2 py-1.5 border border-gray-200 cursor-pointer hover:bg-gray-50 min-w-[70px]">
-              <GlobeIcon />
+            <div className="flex items-center gap-1 bg-white rounded-full px-2 py-1.5 border border-gray-200 cursor-pointer hover:bg-indigo-50 hover:border-indigo-200 hover:shadow-sm transition-all group min-w-[70px]">
+              <div className="group-hover:text-indigo-500 transition-colors">
+                <GlobeIcon />
+              </div>
               <select
                 value={uiLangCode}
                 onChange={(e) => setUiLangCode(e.target.value)}
@@ -1909,8 +2023,8 @@ export default function App() {
         {/* Language Pair */}
         <div className="flex items-center justify-between gap-2 bg-gray-50 p-1.5 rounded-2xl border border-gray-200">
           {/* Input Language */}
-          <div className="flex-1 flex flex-col items-center min-w-0">
-            <span className="text-[10px] text-gray-800 font-bold mb-1 whitespace-nowrap">{t.inputLang}</span>
+          <div className="flex-1 flex flex-col items-center min-w-0 hover:bg-white hover:shadow-sm rounded-xl transition-all cursor-pointer group py-1">
+            <span className="text-[10px] text-gray-800 font-bold mb-1 whitespace-nowrap group-hover:text-indigo-600 transition-colors">{t.inputLang}</span>
             <div className="w-full relative px-2 py-1">
               <select
                 value={langInput.code}
@@ -1923,7 +2037,7 @@ export default function App() {
               >
                 {SUPPORTED_LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.flag} {l.name}</option>)}
               </select>
-              <div className="text-sm font-bold text-gray-900 truncate max-w-[120px] sm:max-w-xs text-center">
+              <div className="text-sm font-bold text-gray-900 truncate max-w-[120px] sm:max-w-xs text-center group-hover:scale-105 transition-transform">
                 {langInput.flag} {langInput.name}
               </div>
             </div>
@@ -1932,8 +2046,8 @@ export default function App() {
           <div className="text-gray-300 shrink-0"><ArrowRightIcon /></div>
 
           {/* Output Language */}
-          <div className="flex-1 flex flex-col items-center min-w-0">
-            <span className="text-[10px] text-gray-800 font-bold mb-1 whitespace-nowrap">{t.outputLang}</span>
+          <div className="flex-1 flex flex-col items-center min-w-0 hover:bg-white hover:shadow-sm rounded-xl transition-all cursor-pointer group py-1">
+            <span className="text-[10px] text-gray-800 font-bold mb-1 whitespace-nowrap group-hover:text-indigo-600 transition-colors">{t.outputLang}</span>
             <div className="w-full relative px-2 py-1">
               <select
                 value={langOutput.code}
@@ -1946,7 +2060,7 @@ export default function App() {
               >
                 {SUPPORTED_LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.flag} {l.name}</option>)}
               </select>
-              <div className="text-sm font-bold text-gray-900 truncate max-w-[120px] sm:max-w-xs text-center">
+              <div className="text-sm font-bold text-gray-900 truncate max-w-[120px] sm:max-w-xs text-center group-hover:scale-105 transition-transform">
                 {langOutput.flag} {langOutput.name}
               </div>
             </div>
@@ -1991,7 +2105,7 @@ export default function App() {
               </div>
               <button
                 onClick={toggleMic}
-                className="mt-6 px-5 py-2.5 rounded-full bg-indigo-600 text-white text-sm font-bold shadow-md hover:bg-indigo-700 transition-colors active:scale-95"
+                className="mt-6 px-6 py-3 rounded-full bg-indigo-600 text-white text-sm font-bold shadow-lg hover:bg-indigo-700 hover:shadow-xl hover:-translate-y-0.5 transition-all active:scale-95"
               >
                 {status === ConnectionStatus.CONNECTING
                   ? t.connecting
@@ -2051,78 +2165,191 @@ export default function App() {
               </div>
             )}
 
-            {visibleHistory.map((item) => (
-              isOutputOnly ? (
-                <div key={item.id} className="border-b border-gray-100 pb-4 last:border-0 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                  <div
-                    role={!item.isTranslating && !!item.translated ? 'button' : undefined}
-                    tabIndex={!item.isTranslating && !!item.translated ? 0 : undefined}
-                    onClick={() => {
-                      if (!item.isTranslating && item.translated) {
-                        playTTS(item.translated, item.id, true);
-                      }
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
+            {visibleHistory.map((item) => {
+              if (isOutputOnly) {
+                return (
+                  <div key={item.id} className="group border-b border-gray-100 pb-4 last:border-0 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <div
+                      className={`relative p-4 rounded-xl shadow-sm flex flex-col justify-between transition-colors ${item.isTranslating ? 'bg-gray-100 border border-gray-200' : 'bg-indigo-50 border border-indigo-100'
+                        } ${!item.isTranslating && item.translated ? 'cursor-pointer hover:bg-indigo-100 active:scale-[0.99]' : ''
+                        }`}
+                      onClick={() => {
+                        if (editingItemId === item.id) return;
                         if (!item.isTranslating && item.translated) {
                           playTTS(item.translated, item.id, true);
                         }
-                      }
-                    }}
-                    className={`relative p-4 rounded-xl shadow-sm flex flex-col justify-between transition-colors ${item.isTranslating ? 'bg-gray-100 border border-gray-200' : 'bg-indigo-50 border border-indigo-100'
-                      } ${!item.isTranslating && item.translated ? 'cursor-pointer hover:bg-indigo-100 active:scale-[0.99]' : ''
-                      }`}
-                  >
-                    {item.isTranslating ? (
-                      <div className="flex gap-1 h-6 items-center">
-                        <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></div>
-                        <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce delay-75"></div>
-                        <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce delay-150"></div>
+                      }}
+                    >
+                      {editingItemId === item.id ? (
+                        <div className="space-y-3" onClick={(e) => e.stopPropagation()}>
+                          <textarea
+                            value={editTranslatedText}
+                            onChange={(e) => setEditTranslatedText(e.target.value)}
+                            className="w-full p-3 rounded-lg border border-indigo-200 text-sm md:text-base outline-none focus:ring-2 focus:ring-indigo-100 min-h-[100px]"
+                            autoFocus
+                          />
+                          <div className="flex justify-end gap-2">
+                            <button
+                              onClick={() => setEditingItemId(null)}
+                              className="px-3 py-1.5 rounded-full bg-gray-100 text-gray-600 text-xs font-bold hover:bg-gray-200 transition-all active:scale-95"
+                            >
+                              취소
+                            </button>
+                            <button
+                              onClick={() => handleSaveEdit(item.id)}
+                              className="px-3 py-1.5 rounded-full bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 hover:shadow-md transition-all active:scale-95"
+                            >
+                              저장
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          {!item.isTranslating && (
+                            <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleMergeWithAbove(item.id);
+                                }}
+                                className="p-1.5 bg-white border border-gray-100 rounded-lg shadow-sm hover:bg-indigo-600 hover:text-white transition-all text-gray-400"
+                                title="위 항목과 병합"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 11l7-7 7 7M5 19l7-7 7 7" /></svg>
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  startEditing(item);
+                                }}
+                                className="p-1.5 bg-white border border-gray-100 rounded-lg shadow-sm hover:bg-indigo-600 hover:text-white transition-all text-gray-400"
+                                title="수정"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                              </button>
+                            </div>
+                          )}
+                          {item.isTranslating ? (
+                            <div className="flex gap-1 h-6 items-center">
+                              <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></div>
+                              <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce delay-75"></div>
+                              <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce delay-150"></div>
+                            </div>
+                          ) : (
+                            <span className="text-indigo-900 font-medium leading-relaxed text-sm md:text-base">{item.translated}</span>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              }
+
+              return (
+                <div key={item.id} className="group relative grid grid-cols-2 gap-4 items-stretch border-b border-gray-100 pb-4 last:border-0 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  {editingItemId === item.id ? (
+                    <div className="col-span-2 space-y-4 bg-white p-4 rounded-xl border border-indigo-100 shadow-sm" onClick={(e) => e.stopPropagation()}>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-gray-400 uppercase">Original</label>
+                          <textarea
+                            value={editOriginalText}
+                            onChange={(e) => setEditOriginalText(e.target.value)}
+                            className="w-full p-3 rounded-lg border border-gray-100 bg-gray-50 text-sm outline-none focus:border-indigo-300 min-h-[120px]"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-indigo-400 uppercase">Translated</label>
+                          <textarea
+                            value={editTranslatedText}
+                            onChange={(e) => setEditTranslatedText(e.target.value)}
+                            className="w-full p-3 rounded-lg border border-indigo-100 bg-indigo-50/30 text-sm outline-none focus:ring-2 focus:ring-indigo-100 min-h-[120px]"
+                          />
+                        </div>
                       </div>
-                    ) : (
-                      <span className="text-indigo-900 font-medium leading-relaxed text-sm md:text-base">{item.translated}</span>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <div key={item.id} className="grid grid-cols-2 gap-4 items-stretch border-b border-gray-100 pb-4 last:border-0 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                  <div className="bg-white border border-gray-200 p-4 rounded-xl shadow-sm text-gray-800 leading-relaxed text-sm md:text-base">
-                    {item.original}
-                  </div>
-                  <div
-                    role={!item.isTranslating && !!item.translated ? 'button' : undefined}
-                    tabIndex={!item.isTranslating && !!item.translated ? 0 : undefined}
-                    onClick={() => {
-                      if (!item.isTranslating && item.translated) {
-                        playTTS(item.translated, item.id);
-                      }
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        if (!item.isTranslating && item.translated) {
-                          playTTS(item.translated, item.id);
-                        }
-                      }
-                    }}
-                    className={`relative p-4 rounded-xl shadow-sm flex flex-col justify-between transition-colors ${item.isTranslating ? 'bg-gray-100 border border-gray-200' : 'bg-indigo-50 border border-indigo-100'
-                      } ${!item.isTranslating && item.translated ? 'cursor-pointer hover:bg-indigo-100 active:scale-[0.99]' : ''
-                      }`}
-                  >
-                    {item.isTranslating ? (
-                      <div className="flex gap-1 h-6 items-center">
-                        <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></div>
-                        <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce delay-75"></div>
-                        <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce delay-150"></div>
+                      <div className="flex justify-between items-center gap-2">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={(e) => {
+                              const origArea = (e.currentTarget.parentElement?.parentElement?.parentElement?.querySelector('textarea') as HTMLTextAreaElement);
+                              const transArea = (e.currentTarget.parentElement?.parentElement?.parentElement?.querySelectorAll('textarea')[1] as HTMLTextAreaElement);
+                              handleSplitItem(item.id, origArea.selectionStart, transArea.selectionStart);
+                            }}
+                            className="px-3 py-1.5 rounded-full bg-indigo-50 text-indigo-600 text-[10px] font-bold hover:bg-indigo-100 transition-all active:scale-95 border border-indigo-100"
+                          >
+                            여기서 나누기
+                          </button>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setEditingItemId(null)}
+                            className="px-4 py-2 rounded-full bg-gray-100 text-gray-600 text-xs font-bold hover:bg-gray-200 transition-all active:scale-95"
+                          >
+                            취소
+                          </button>
+                          <button
+                            onClick={() => handleSaveEdit(item.id)}
+                            className="px-4 py-2 rounded-full bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 hover:shadow-md transition-all active:scale-95"
+                          >
+                            저장
+                          </button>
+                        </div>
                       </div>
-                    ) : (
-                      <span className="text-indigo-900 font-medium leading-relaxed text-sm md:text-base">{item.translated}</span>
-                    )}
-                  </div>
+                    </div>
+                  ) : (
+                    <>
+                      {!item.isTranslating && (
+                        <div className="absolute top-0 right-0 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleMergeWithAbove(item.id);
+                            }}
+                            className="p-1.5 bg-white border border-gray-100 rounded-lg shadow-sm hover:bg-indigo-600 hover:text-white transition-all text-gray-400"
+                            title="위 항목과 병합"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 11l7-7 7 7M5 19l7-7 7 7" /></svg>
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              startEditing(item);
+                            }}
+                            className="p-1.5 bg-white border border-gray-100 rounded-lg shadow-sm hover:bg-indigo-600 hover:text-white transition-all text-gray-400"
+                            title="수정"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                          </button>
+                        </div>
+                      )}
+                      <div className="bg-white border border-gray-200 p-4 rounded-xl shadow-sm text-gray-800 leading-relaxed text-sm md:text-base">
+                        {item.original}
+                      </div>
+                      <div
+                        className={`relative p-4 rounded-xl shadow-sm flex flex-col justify-between transition-colors ${item.isTranslating ? 'bg-gray-100 border border-gray-200' : 'bg-indigo-50 border border-indigo-100'
+                          } ${!item.isTranslating && item.translated ? 'cursor-pointer hover:bg-indigo-100 active:scale-[0.99]' : ''
+                          }`}
+                        onClick={() => {
+                          if (!item.isTranslating && item.translated) {
+                            playTTS(item.translated, item.id);
+                          }
+                        }}
+                      >
+                        {item.isTranslating ? (
+                          <div className="flex gap-1 h-6 items-center">
+                            <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></div>
+                            <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce delay-75"></div>
+                            <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce delay-150"></div>
+                          </div>
+                        ) : (
+                          <span className="text-indigo-900 font-medium leading-relaxed text-sm md:text-base">{item.translated}</span>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
-              )
-            ))}
+              );
+            })}
 
             {/* Live Transcription Placeholder (Left Side) */}
             {currentTurnText && (
@@ -2155,26 +2382,26 @@ export default function App() {
         <div className="flex items-center gap-0">
           <button
             onClick={() => setIsAutoPlay(!isAutoPlay)}
-            className={`flex flex-col items-center gap-1 transition-colors w-16 ${isAutoPlay ? 'text-indigo-600' : 'text-gray-500'
+            className={`flex flex-col items-center gap-1 transition-all active:scale-90 w-16 group ${isAutoPlay ? 'text-indigo-600' : 'text-gray-500'
               }`}
           >
-            <div className={`p-3 rounded-full ${isAutoPlay ? 'bg-indigo-100' : 'bg-gray-100'
+            <div className={`p-3 rounded-full shadow-sm group-hover:shadow-md transition-all ${isAutoPlay ? 'bg-indigo-100 group-hover:bg-indigo-200' : 'bg-gray-100 group-hover:bg-gray-200'
               }`}>
               <SpeakerIcon />
             </div>
-            <span className="text-[10px] font-bold">{t.autoPlay}</span>
+            <span className="text-[10px] font-bold group-hover:text-indigo-600 transition-colors">{t.autoPlay}</span>
           </button>
 
           <button
             onClick={() => setIsScrollLocked(!isScrollLocked)}
-            className={`flex flex-col items-center gap-1 transition-colors w-16 ${!isScrollLocked ? 'text-indigo-600' : 'text-gray-500'
+            className={`flex flex-col items-center gap-1 transition-all active:scale-90 w-16 group ${!isScrollLocked ? 'text-indigo-600' : 'text-gray-500'
               }`}
           >
-            <div className={`p-3 rounded-full ${!isScrollLocked ? 'bg-indigo-100' : 'bg-gray-100'
+            <div className={`p-3 rounded-full shadow-sm group-hover:shadow-md transition-all ${!isScrollLocked ? 'bg-indigo-100 group-hover:bg-indigo-200' : 'bg-gray-100 group-hover:bg-gray-200'
               }`}>
               {isScrollLocked ? (
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 002-2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                 </svg>
               ) : (
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2182,14 +2409,14 @@ export default function App() {
                 </svg>
               )}
             </div>
-            <span className="text-[10px] font-bold">자동스크롤</span>
+            <span className="text-[10px] font-bold group-hover:text-indigo-600 transition-colors">자동스크롤</span>
           </button>
         </div>
 
         {/* Main Mic */}
         <button
           onClick={toggleMic}
-          className={`w-20 h-20 -mt-10 rounded-full flex items-center justify-center shadow-xl border-4 border-white transition-all transform active:scale-95 ${status === ConnectionStatus.CONNECTED
+          className={`w-20 h-20 -mt-10 rounded-full flex items-center justify-center shadow-xl border-4 border-white transition-all transform hover:scale-110 hover:brightness-110 active:scale-95 ${status === ConnectionStatus.CONNECTED
             ? 'bg-red-500 text-white shadow-red-200 ring-4 ring-red-50'
             : 'bg-indigo-600 text-white shadow-indigo-200 ring-4 ring-indigo-50'
             }`}
@@ -2206,22 +2433,22 @@ export default function App() {
         <div className="flex items-center gap-0">
           <button
             onClick={playAll}
-            className="flex flex-col items-center gap-1 text-gray-500 hover:text-indigo-600 transition-colors w-16"
+            className="flex flex-col items-center gap-1 text-gray-500 transition-all active:scale-90 w-16 group"
           >
-            <div className="p-3 bg-gray-100 rounded-full">
+            <div className="p-3 bg-gray-100 rounded-full shadow-sm group-hover:bg-indigo-100 group-hover:text-indigo-600 group-hover:shadow-md transition-all">
               <PlayAllIcon />
             </div>
-            <span className="text-[10px] font-bold">{t.playAll}</span>
+            <span className="text-[10px] font-bold group-hover:text-indigo-600 transition-colors">{t.playAll}</span>
           </button>
 
           <button
             onClick={() => setIsCameraOpen(true)}
-            className="flex flex-col items-center gap-1 text-gray-500 hover:text-indigo-600 transition-colors w-16"
+            className="flex flex-col items-center gap-1 text-gray-500 transition-all active:scale-90 w-16 group"
           >
-            <div className="p-3 bg-gray-100 rounded-full">
+            <div className="p-3 bg-gray-100 rounded-full shadow-sm group-hover:bg-emerald-100 group-hover:text-emerald-600 group-hover:shadow-md transition-all">
               <CameraIcon />
             </div>
-            <span className="text-[10px] font-bold">{t.visionButton}</span>
+            <span className="text-[10px] font-bold group-hover:text-emerald-600 transition-colors">{t.visionButton}</span>
           </button>
         </div>
       </div>
@@ -2304,16 +2531,16 @@ export default function App() {
               {/* Google Login Button */}
               <button
                 onClick={() => handleLoginSelection('google')}
-                className="w-full flex items-center p-4 rounded-xl border border-gray-200 hover:border-blue-200 hover:bg-blue-50 transition-all group text-left relative overflow-hidden"
+                className="w-full flex items-center p-4 rounded-xl border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-all group text-left relative overflow-hidden active:scale-[0.98] hover:shadow-lg"
               >
-                <div className="bg-white p-2 rounded-full shadow-sm mr-4 z-10">
+                <div className="bg-white p-2 rounded-full shadow-sm mr-4 z-10 transition-transform group-hover:scale-110">
                   <GoogleLogo />
                 </div>
                 <div className="z-10">
-                  <h3 className="font-bold text-gray-800 group-hover:text-blue-700">{t.loginGoogle}</h3>
-                  <p className="text-xs text-gray-500 mt-0.5">{t.loginGoogleDesc}</p>
+                  <h3 className="font-bold text-gray-800 group-hover:text-blue-700 transition-colors">{t.loginGoogle}</h3>
+                  <p className="text-xs text-gray-500 mt-0.5 group-hover:text-blue-600 transition-colors">{t.loginGoogleDesc}</p>
                 </div>
-                <div className="absolute inset-0 border-2 border-transparent group-hover:border-blue-100 rounded-xl pointer-events-none"></div>
+                <div className="absolute inset-0 border-2 border-transparent group-hover:border-blue-100 rounded-xl pointer-events-none transition-all"></div>
               </button>
 
               <div className="border border-gray-100 rounded-xl p-4 bg-gray-50">
@@ -2324,7 +2551,7 @@ export default function App() {
                     onChange={(e) => setEmailAuthEmail(e.target.value)}
                     placeholder="이메일"
                     autoComplete="email"
-                    className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm outline-none focus:border-indigo-300 bg-white"
+                    className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 bg-white transition-all shadow-sm"
                   />
                   <input
                     type="password"
@@ -2332,7 +2559,7 @@ export default function App() {
                     onChange={(e) => setEmailAuthPassword(e.target.value)}
                     placeholder="비밀번호"
                     autoComplete="current-password"
-                    className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm outline-none focus:border-indigo-300 bg-white"
+                    className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 bg-white transition-all shadow-sm"
                   />
 
                   {emailAuthError ? (
@@ -2343,14 +2570,14 @@ export default function App() {
                     <button
                       disabled={isEmailAuthBusy}
                       onClick={handleEmailLogin}
-                      className="flex-1 px-3 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40"
+                      className="flex-1 px-3 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-md transition-all active:scale-95 disabled:opacity-40"
                     >
                       로그인
                     </button>
                     <button
                       disabled={isEmailAuthBusy}
                       onClick={handleEmailSignUp}
-                      className="flex-1 px-3 py-2 rounded-xl text-xs font-bold bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-40"
+                      className="flex-1 px-3 py-2 rounded-xl text-xs font-bold bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300 hover:shadow-sm transition-all active:scale-95 disabled:opacity-40"
                     >
                       가입
                     </button>
@@ -2361,21 +2588,21 @@ export default function App() {
               {/* Guest Login Button */}
               <button
                 onClick={() => handleLoginSelection('guest')}
-                className="w-full flex items-center p-4 rounded-xl border border-gray-200 hover:border-gray-400 hover:bg-gray-50 transition-all group text-left"
+                className="w-full flex items-center p-4 rounded-xl border border-gray-200 hover:border-gray-400 hover:bg-gray-50 transition-all group text-left active:scale-[0.98] hover:shadow-lg"
               >
-                <div className="bg-gray-200 p-2 rounded-full mr-4 text-gray-500 group-hover:bg-gray-300 group-hover:text-gray-700">
+                <div className="bg-gray-200 p-2 rounded-full mr-4 text-gray-500 group-hover:bg-indigo-100 group-hover:text-indigo-600 transition-all scale-100 group-hover:scale-110">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
                 </div>
                 <div>
-                  <h3 className="font-bold text-gray-700">{t.loginGuest}</h3>
-                  <p className="text-xs text-gray-400 mt-0.5">{t.loginGuestDesc}</p>
+                  <h3 className="font-bold text-gray-700 group-hover:text-gray-900 transition-colors">{t.loginGuest}</h3>
+                  <p className="text-xs text-gray-400 mt-0.5 group-hover:text-gray-500 transition-colors">{t.loginGuestDesc}</p>
                 </div>
               </button>
             </div>
 
             <button
               onClick={() => setIsLoginModalOpen(false)}
-              className="mt-6 text-sm text-gray-400 hover:text-gray-600 underline"
+              className="mt-6 text-sm text-gray-400 hover:text-indigo-600 transition-colors underline font-bold"
             >
               Cancel
             </button>
@@ -2397,7 +2624,7 @@ export default function App() {
 
               <button
                 onClick={() => setIsHistoryModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 p-1 bg-white rounded-full shadow-sm"
+                className="text-gray-400 hover:text-indigo-600 p-1 bg-white rounded-full shadow-sm hover:shadow-md transition-all active:scale-95"
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
@@ -2412,7 +2639,7 @@ export default function App() {
                 <button
                   onClick={() => handleRestoreFromDrive(false)}
                   disabled={!selectedDriveSessionId || isRestoringDriveSession}
-                  className="px-3 py-1.5 rounded-full text-xs font-bold border transition-colors whitespace-nowrap bg-indigo-50 border-indigo-200 text-indigo-700 disabled:opacity-40"
+                  className="px-3 py-1.5 rounded-full text-xs font-bold border transition-all active:scale-95 shadow-sm whitespace-nowrap bg-indigo-600 border-indigo-700 text-white hover:bg-indigo-700 hover:shadow-md disabled:opacity-40"
                 >
                   대화만 복원
                 </button>
@@ -2420,7 +2647,7 @@ export default function App() {
                 <button
                   onClick={() => handleRestoreFromDrive(true)}
                   disabled={!selectedDriveSessionId || isRestoringDriveSession}
-                  className="px-3 py-1.5 rounded-full text-xs font-bold border transition-colors whitespace-nowrap bg-white border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40"
+                  className="px-3 py-1.5 rounded-full text-xs font-bold border transition-all active:scale-95 shadow-sm whitespace-nowrap bg-white border-gray-200 text-gray-500 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-600 hover:shadow-md disabled:opacity-40"
                 >
                   음성도 복원
                 </button>
@@ -2449,9 +2676,9 @@ export default function App() {
                       <button
                         key={s.folderId}
                         onClick={() => setSelectedDriveSessionId(s.folderId)}
-                        className={`w-full text-left px-4 py-3 rounded-xl border transition-colors ${selectedDriveSessionId === s.folderId
-                          ? 'bg-indigo-50 border-indigo-200'
-                          : 'bg-white border-gray-100 hover:bg-gray-50'
+                        className={`w-full text-left px-4 py-3 rounded-xl border transition-all active:scale-[0.98] ${selectedDriveSessionId === s.folderId
+                          ? 'bg-indigo-50 border-indigo-300 shadow-sm'
+                          : 'bg-white border-gray-100 hover:bg-gray-50 hover:border-gray-200 hover:shadow-sm'
                           }`}
                       >
                         <div className="flex items-center justify-between gap-3">
@@ -2464,7 +2691,7 @@ export default function App() {
                             target="_blank"
                             rel="noreferrer"
                             onClick={(e) => e.stopPropagation()}
-                            className="text-xs font-bold text-indigo-600 hover:text-indigo-800"
+                            className="text-xs font-bold text-indigo-600 hover:text-indigo-800 hover:underline px-2 py-1 rounded-lg hover:bg-white transition-all shadow-none hover:shadow-sm border border-transparent hover:border-indigo-100"
                           >
                             Drive 열기
                           </a>
@@ -2484,7 +2711,7 @@ export default function App() {
                     <button
                       onClick={handleLoadSessionFromLocal}
                       disabled={!selectedLocalSessionId || localSessionsPreview.length === 0}
-                      className="px-3 py-1.5 rounded-full text-xs font-bold border transition-colors whitespace-nowrap bg-indigo-50 border-indigo-200 text-indigo-700 disabled:opacity-40"
+                      className="px-3 py-1.5 rounded-full text-xs font-bold border transition-all active:scale-95 shadow-sm whitespace-nowrap bg-indigo-600 border-indigo-700 text-white hover:bg-indigo-700 hover:shadow-md disabled:opacity-40"
                     >
                       불러오기
                     </button>
@@ -2492,7 +2719,7 @@ export default function App() {
                     <button
                       onClick={handleClearLocalSessions}
                       disabled={localSessionsPreview.length === 0}
-                      className="px-3 py-1.5 rounded-full text-xs font-bold border transition-colors whitespace-nowrap bg-white border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40"
+                      className="px-3 py-1.5 rounded-full text-xs font-bold border transition-all active:scale-95 shadow-sm whitespace-nowrap bg-white border-gray-200 text-gray-500 hover:bg-red-50 hover:border-red-200 hover:text-red-600 hover:shadow-md disabled:opacity-40"
                     >
                       삭제
                     </button>
@@ -2511,9 +2738,9 @@ export default function App() {
                         <button
                           key={s.id}
                           onClick={() => setSelectedLocalSessionId(s.id)}
-                          className={`w-full text-left px-4 py-3 rounded-xl border transition-colors ${selectedLocalSessionId === s.id
-                            ? 'bg-indigo-50 border-indigo-200'
-                            : 'bg-white border-gray-100 hover:bg-gray-50'
+                          className={`w-full text-left px-4 py-3 rounded-xl border transition-all active:scale-[0.98] ${selectedLocalSessionId === s.id
+                            ? 'bg-indigo-50 border-indigo-300 shadow-sm'
+                            : 'bg-white border-gray-100 hover:bg-gray-50 hover:border-gray-200 hover:shadow-sm'
                             }`}
                         >
                           <div className="flex items-center justify-between gap-3">
@@ -2549,7 +2776,7 @@ export default function App() {
 
               <button
                 onClick={() => setIsSettingsModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 p-1 bg-white rounded-full shadow-sm"
+                className="text-gray-400 hover:text-indigo-600 p-1 bg-white rounded-full shadow-sm hover:shadow-md transition-all active:scale-95"
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
@@ -2561,18 +2788,18 @@ export default function App() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => setSettings(prev => ({ ...prev, driveBackupMode: 'manual' }))}
-                    className={`flex-1 px-3 py-2 rounded-xl text-sm font-bold border transition-colors ${settings.driveBackupMode === 'manual'
-                      ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
-                      : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
+                    className={`flex-1 px-3 py-2 rounded-xl text-sm font-bold border transition-all active:scale-95 shadow-sm ${settings.driveBackupMode === 'manual'
+                      ? 'bg-indigo-600 border-indigo-700 text-white shadow-indigo-100'
+                      : 'bg-white border-gray-200 text-gray-500 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-600'
                       }`}
                   >
                     수동
                   </button>
                   <button
                     onClick={() => setSettings(prev => ({ ...prev, driveBackupMode: 'auto' }))}
-                    className={`flex-1 px-3 py-2 rounded-xl text-sm font-bold border transition-colors ${settings.driveBackupMode === 'auto'
-                      ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
-                      : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
+                    className={`flex-1 px-3 py-2 rounded-xl text-sm font-bold border transition-all active:scale-95 shadow-sm ${settings.driveBackupMode === 'auto'
+                      ? 'bg-indigo-600 border-indigo-700 text-white shadow-indigo-100'
+                      : 'bg-white border-gray-200 text-gray-500 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-600'
                       }`}
                   >
                     자동
@@ -2584,13 +2811,13 @@ export default function App() {
                 <div className="text-sm font-bold text-gray-800">음성 캐시(IndexedDB)</div>
                 <button
                   onClick={() => setSettings(prev => ({ ...prev, audioCacheEnabled: !prev.audioCacheEnabled }))}
-                  className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-colors ${settings.audioCacheEnabled
-                    ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
-                    : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
+                  className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all active:scale-[0.98] shadow-sm ${settings.audioCacheEnabled
+                    ? 'bg-indigo-600 border-indigo-700 text-white shadow-indigo-100'
+                    : 'bg-white border-gray-200 text-gray-500 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-600'
                     }`}
                 >
                   <span className="text-sm font-bold">사용</span>
-                  <span className="text-xs font-bold">{settings.audioCacheEnabled ? 'ON' : 'OFF'}</span>
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${settings.audioCacheEnabled ? 'bg-white/20' : 'bg-gray-100 text-gray-400'}`}>{settings.audioCacheEnabled ? 'ON' : 'OFF'}</span>
                 </button>
               </div>
             </div>
@@ -2609,7 +2836,7 @@ export default function App() {
               </h2>
               <button
                 onClick={() => setIsClassroomModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 p-1 bg-white rounded-full shadow-sm"
+                className="text-gray-400 hover:text-indigo-600 p-1 bg-white rounded-full shadow-sm hover:shadow-md transition-all active:scale-95"
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
               </button>

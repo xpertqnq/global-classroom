@@ -9,6 +9,7 @@ type DriveBackupOptions = {
   voiceName?: string;
   ttsModel?: string;
   generateMissingAudio?: boolean;
+  notebookLMMode?: boolean; // NotebookLM 전용 폴더 사용 여부
 };
 
 type DriveBackupResult = {
@@ -66,7 +67,7 @@ export const downloadTranscriptLocally = (history: ConversationItem[]) => {
 
   const blob = new Blob([contentString], { type: 'text/plain;charset=utf-8' });
   const url = URL.createObjectURL(blob);
-  
+
   const a = document.createElement('a');
   a.href = url;
   a.download = `GlobalClassroom_Transcript_${Date.now()}.txt`;
@@ -74,7 +75,7 @@ export const downloadTranscriptLocally = (history: ConversationItem[]) => {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
-  
+
   return { success: true, local: true };
 };
 
@@ -82,12 +83,12 @@ export const downloadBackupLocally = (history: ConversationItem[]) => {
   const backupData = {
     date: new Date().toISOString(),
     app: "Global Classroom",
-    history: history.map(({ audioBase64, ...rest }) => rest) 
+    history: history.map(({ audioBase64, ...rest }) => rest)
   };
 
   const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
-  
+
   const a = document.createElement('a');
   a.href = url;
   a.download = `GlobalClassroom_Backup_${Date.now()}.json`;
@@ -106,12 +107,12 @@ const findOrCreateFolder = async (name: string, accessToken: string, parentId?: 
   if (parentId) {
     query += ` and '${parentId}' in parents`;
   }
-  
+
   const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}`, {
     headers: getHeaders(accessToken)
   });
   const searchData = await searchRes.json();
-  
+
   if (searchData.files && searchData.files.length > 0) {
     return searchData.files[0].id;
   }
@@ -166,7 +167,7 @@ const uploadFile = async (name: string, mimeType: string, data: Blob, accessToke
     },
     body: form
   });
-  
+
   return await res.json();
 };
 
@@ -537,7 +538,12 @@ export const backupToDrive = async (accessToken: string, history: ConversationIt
     const today = new Date().toISOString().split('T')[0];
     const now = new Date();
     const sessionName = `Session_${now.toISOString().replace(/[:.]/g, '-')}`;
-    const rootId = await findOrCreateFolder('Global Classroom', accessToken);
+    let rootFolderName = 'Global Classroom';
+    if (options?.notebookLMMode) {
+      rootFolderName = 'NotebookLM Sources (Global Classroom)';
+    }
+
+    const rootId = await findOrCreateFolder(rootFolderName, accessToken);
     const dateFolderId = await findOrCreateFolder(today, accessToken, rootId);
     const sessionFolderId = await findOrCreateFolder(sessionName, accessToken, dateFolderId);
 
@@ -631,6 +637,7 @@ export const backupToDrive = async (accessToken: string, history: ConversationIt
 
     const manifest = {
       app: 'Global Classroom',
+      notebookLMReady: options?.notebookLMMode,
       createdAt: now.toISOString(),
       date: today,
       sessionName,
@@ -694,12 +701,12 @@ export const exportToDocs = async (accessToken: string, history: ConversationIte
       headers: getHeaders(accessToken),
       body: JSON.stringify({
         requests: [
-            {
-                insertText: {
-                    location: { index: 1 },
-                    text: finalBody
-                }
+          {
+            insertText: {
+              location: { index: 1 },
+              text: finalBody
             }
+          }
         ]
       })
     });
@@ -733,7 +740,7 @@ export const createCourseWork = async (accessToken: string, courseId: string, hi
 
   // Note: Creating a full text file and attaching it requires Drive upload then linking.
   // For simplicity in this demo, we create a 'Text' based assignment or Link.
-  
+
   const body = {
     title: `Translation Notes ${today}`,
     description: description,
@@ -746,7 +753,7 @@ export const createCourseWork = async (accessToken: string, courseId: string, hi
     headers: getHeaders(accessToken),
     body: JSON.stringify(body)
   });
-  
+
   if (!res.ok) throw new Error('Failed to create coursework');
   return await res.json();
 };

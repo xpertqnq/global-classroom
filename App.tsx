@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef, useCallback, useLayoutEffect } from
 import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
 import { User, onAuthStateChanged } from 'firebase/auth';
 import {
-  getAppAuth, 
-  logOut, 
+  getAppAuth,
+  logOut,
   signInAsGuest,
   signInWithEmailPassword,
   signUpWithEmailPassword
@@ -11,22 +11,22 @@ import {
 import { loadSessions, saveSessions, clearSessions } from './utils/localStorage';
 import { getCachedAudioBase64, hasCachedAudio, setCachedAudioBase64, clearCachedAudio } from './utils/idbAudioCache';
 import {
-  backupToDrive, 
-  exportToDocs, 
-  downloadTranscriptLocally, 
+  backupToDrive,
+  exportToDocs,
+  downloadTranscriptLocally,
   listDriveSessions,
   restoreDriveSession,
   listCourses,
   createCourseWork
 } from './utils/googleWorkspace';
 import { Language, ConnectionStatus, VoiceOption, ConversationItem, ConversationSession, VisionResult } from './types';
-import { 
-  SUPPORTED_LANGUAGES, 
-  MODEL_LIVE, 
-  MODEL_TRANSLATE, 
+import {
+  SUPPORTED_LANGUAGES,
+  MODEL_LIVE,
+  MODEL_TRANSLATE,
   MODEL_VISION,
-  MODEL_TTS, 
-  TRANSLATIONS, 
+  MODEL_TTS,
+  TRANSLATIONS,
   VOICE_OPTIONS,
   GOOGLE_CLIENT_ID,
   GOOGLE_SCOPES
@@ -36,6 +36,7 @@ import { retry } from './utils/retry';
 import Visualizer from './components/Visualizer';
 import CameraView from './components/CameraView';
 import AdminPanelModal from './components/AdminPanelModal';
+import NotebookLMGuide from './components/NotebookLMGuide';
 
 // --- Icons ---
 const MicIcon = () => <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>;
@@ -55,40 +56,46 @@ const BellIcon = () => (
 // --- Brand Icons (Official Colors) ---
 const DocsIcon = () => (
   <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M14.5 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V7.5L14.5 2Z" fill="#4285F4"/>
-    <path d="M14 2V8H20" fill="#A1C2FA"/>
-    <path d="M14 2V8H20" fillOpacity="0.3" fill="black"/>
-    <path d="M7 11H14V13H7V11ZM7 15H17V17H7V15ZM7 7H12V9H7V7Z" fill="white"/>
+    <path d="M14.5 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V7.5L14.5 2Z" fill="#4285F4" />
+    <path d="M14 2V8H20" fill="#A1C2FA" />
+    <path d="M14 2V8H20" fillOpacity="0.3" fill="black" />
+    <path d="M7 11H14V13H7V11ZM7 15H17V17H7V15ZM7 7H12V9H7V7Z" fill="white" />
   </svg>
 );
 
 const DriveIcon = () => (
   <svg className="w-5 h-5" viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg">
-    <path d="M6.6 66.85l3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/>
-    <path d="M43.65 25l13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2l-13.75 23.8z" fill="#00ac47"/>
-    <path d="M73.55 76.8c1.55 0 3.1-.4 4.5-1.2l3.85-6.65c.8-1.4 1.2-2.95 1.2-4.5h-27.5z" fill="#ea4335"/>
-    <path d="M43.65 25L29.9 1.2c-1.35.8-2.5 1.95-3.3 3.3l-20 34.6 13.75 23.8z" fill="#00832d"/>
-    <path d="M86.4 50.85l-13.75-23.8C71.85 25.7 70.7 24.55 69.35 23.75L49.95 23.75l13.75 23.8z" fill="#2684fc"/>
-    <path d="M73.55 76.8h-29.9l-13.75-23.8h57.4c0 1.6-.45 3.15-1.25 4.55z" fill="#ffba00"/>
+    <path d="M6.6 66.85l3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da" />
+    <path d="M43.65 25l13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2l-13.75 23.8z" fill="#00ac47" />
+    <path d="M73.55 76.8c1.55 0 3.1-.4 4.5-1.2l3.85-6.65c.8-1.4 1.2-2.95 1.2-4.5h-27.5z" fill="#ea4335" />
+    <path d="M43.65 25L29.9 1.2c-1.35.8-2.5 1.95-3.3 3.3l-20 34.6 13.75 23.8z" fill="#00832d" />
+    <path d="M86.4 50.85l-13.75-23.8C71.85 25.7 70.7 24.55 69.35 23.75L49.95 23.75l13.75 23.8z" fill="#2684fc" />
+    <path d="M73.55 76.8h-29.9l-13.75-23.8h57.4c0 1.6-.45 3.15-1.25 4.55z" fill="#ffba00" />
   </svg>
 );
 
 const ClassroomIcon = () => (
   <svg className="w-5 h-5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-    <path fill="#0F9D58" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-5-9h10v2H7z"/>
-    <path fill="#0F9D58" d="M12 6c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm0 6c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/>
+    <path fill="#0F9D58" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-5-9h10v2H7z" />
+    <path fill="#0F9D58" d="M12 6c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm0 6c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z" />
     <circle cx="12" cy="10" r="1.5" fill="#F6BB16" />
-    <path d="M12 12.5c-1.67 0-5 .83-5 2.5V16h10v-1c0-1.67-3.33-2.5-5-2.5z" fill="#F6BB16"/>
+    <path d="M12 12.5c-1.67 0-5 .83-5 2.5V16h10v-1c0-1.67-3.33-2.5-5-2.5z" fill="#F6BB16" />
+  </svg>
+);
+
+const NotebookLMIcon = () => (
+  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke="#4B5563" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
 
 // Google Logo for Login Button
 const GoogleLogo = () => (
   <svg className="w-5 h-5" viewBox="0 0 24 24">
-    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.26.81-.58z" fill="#FBBC05"/>
-    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.26.81-.58z" fill="#FBBC05" />
+    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
   </svg>
 );
 
@@ -152,7 +159,7 @@ export default function App() {
     } catch {
       return null;
     }
-  }); 
+  });
   const [emailAuthEmail, setEmailAuthEmail] = useState('');
   const [emailAuthPassword, setEmailAuthPassword] = useState('');
   const [emailAuthError, setEmailAuthError] = useState<string>('');
@@ -180,6 +187,7 @@ export default function App() {
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isClassroomModalOpen, setIsClassroomModalOpen] = useState(false);
+  const [isNotebookLMGuideOpen, setIsNotebookLMGuideOpen] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [localSessionsPreview, setLocalSessionsPreview] = useState<ConversationSession[]>([]);
   const [selectedLocalSessionId, setSelectedLocalSessionId] = useState<string>('');
@@ -212,7 +220,7 @@ export default function App() {
   });
   const [courses, setCourses] = useState<any[]>([]);
   const [isLoadingCourses, setIsLoadingCourses] = useState(false);
-  
+
   const exportMenuRef = useRef<HTMLDivElement>(null);
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const notificationMenuRef = useRef<HTMLDivElement>(null);
@@ -228,7 +236,7 @@ export default function App() {
   const geminiMicDesiredRef = useRef(false);
   const isGeminiConnectingRef = useRef(false);
   const geminiConnectIdRef = useRef(0);
-  const connectToGeminiRef = useRef<(opts?: { isRetry?: boolean }) => Promise<void>>(async () => {});
+  const connectToGeminiRef = useRef<(opts?: { isRetry?: boolean }) => Promise<void>>(async () => { });
   const tokenClientRef = useRef<any>(null); // GIS Token Client
   const isGuestSigningInRef = useRef(false);
 
@@ -287,62 +295,62 @@ export default function App() {
     // Initialize GIS Client
     // We check if google global is available (loaded via script in index.html)
     const checkGoogle = setInterval(() => {
-       if (typeof google !== 'undefined' && google.accounts && google.accounts.oauth2) {
-          if (!GOOGLE_CLIENT_ID) {
-            console.error('GOOGLE_CLIENT_ID is empty. Check VITE_GOOGLE_CLIENT_ID in Netlify env.');
-            clearInterval(checkGoogle);
-            return;
-          }
+      if (typeof google !== 'undefined' && google.accounts && google.accounts.oauth2) {
+        if (!GOOGLE_CLIENT_ID) {
+          console.error('GOOGLE_CLIENT_ID is empty. Check VITE_GOOGLE_CLIENT_ID in Netlify env.');
+          clearInterval(checkGoogle);
+          return;
+        }
 
-          try {
-            tokenClientRef.current = google.accounts.oauth2.initTokenClient({
-              client_id: GOOGLE_CLIENT_ID,
-              scope: GOOGLE_SCOPES,
-              callback: async (tokenResponse: any) => {
-                if (tokenResponse && tokenResponse.access_token) {
-                  setAccessToken(tokenResponse.access_token);
-                  // Fetch User Profile
+        try {
+          tokenClientRef.current = google.accounts.oauth2.initTokenClient({
+            client_id: GOOGLE_CLIENT_ID,
+            scope: GOOGLE_SCOPES,
+            callback: async (tokenResponse: any) => {
+              if (tokenResponse && tokenResponse.access_token) {
+                setAccessToken(tokenResponse.access_token);
+                // Fetch User Profile
+                try {
+                  const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                    headers: { 'Authorization': `Bearer ${tokenResponse.access_token}` }
+                  });
+                  const profile = await res.json();
+                  // Construct a user object compatible with our UI
+                  const googleUser = {
+                    uid: profile.sub,
+                    displayName: profile.name,
+                    email: profile.email,
+                    photoURL: profile.picture,
+                    isAnonymous: false,
+                    providerId: 'google.com'
+                  };
+                  setUser(googleUser);
                   try {
-                    const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-                      headers: { 'Authorization': `Bearer ${tokenResponse.access_token}` }
-                    });
-                    const profile = await res.json();
-                    // Construct a user object compatible with our UI
-                    const googleUser = {
-                      uid: profile.sub,
-                      displayName: profile.name,
-                      email: profile.email,
-                      photoURL: profile.picture,
-                      isAnonymous: false,
-                      providerId: 'google.com'
-                    };
-                    setUser(googleUser);
-                    try {
-                      sessionStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, tokenResponse.access_token);
-                      sessionStorage.setItem(GOOGLE_USER_STORAGE_KEY, JSON.stringify(googleUser));
-                    } catch {
-                    }
-                    setIsLoginModalOpen(false);
-                  } catch (e) {
-                    console.error("Failed to fetch Google profile", e);
+                    sessionStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, tokenResponse.access_token);
+                    sessionStorage.setItem(GOOGLE_USER_STORAGE_KEY, JSON.stringify(googleUser));
+                  } catch {
                   }
+                  setIsLoginModalOpen(false);
+                } catch (e) {
+                  console.error("Failed to fetch Google profile", e);
                 }
-              },
-            });
-            console.log('GIS Token Client initialized');
-            clearInterval(checkGoogle);
-          } catch (e) {
-            console.error('initTokenClient failed:', e);
-            tokenClientRef.current = null;
-          }
-       }
+              }
+            },
+          });
+          console.log('GIS Token Client initialized');
+          clearInterval(checkGoogle);
+        } catch (e) {
+          console.error('initTokenClient failed:', e);
+          tokenClientRef.current = null;
+        }
+      }
     }, 500);
 
     return () => {
       clearInterval(checkGoogle);
     };
   }, []); // Only on mount
-  
+
   // 2. Monitor Firebase Auth State (Guest)
   useEffect(() => {
     const auth = getAppAuth();
@@ -570,7 +578,7 @@ export default function App() {
       setIsEmailAuthBusy(false);
     }
   };
-  
+
   const handleLoginSelection = async (type: 'google' | 'guest') => {
     setEmailAuthError('');
     console.log('Login selection:', type);
@@ -628,13 +636,13 @@ export default function App() {
       sessionStorage.removeItem(GOOGLE_USER_STORAGE_KEY);
     } catch {
     }
-    
+
     // 2. Firebase Logout
     await logOut();
-    
+
     // 3. Reset User
     setUser(null);
-    
+
     // 4. Re-initiate Guest login if needed by effect
     try {
       const guest = await signInAsGuest();
@@ -649,11 +657,11 @@ export default function App() {
     setIsSettingsModalOpen(true);
   };
 
-  const handleExport = async (type: 'drive' | 'docs' | 'classroom') => {
+  const handleExport = async (type: 'drive' | 'docs' | 'classroom' | 'notebooklm') => {
     setIsExportMenuOpen(false);
-    
+
     // Auth Checks before processing
-    if (type === 'drive' || type === 'classroom') {
+    if (type === 'drive' || type === 'classroom' || type === 'notebooklm') {
       // Check for Google Login (accessToken presence) specifically for these features
       if (!accessToken) {
         setIsLoginModalOpen(true);
@@ -676,17 +684,29 @@ export default function App() {
           window.open(result.folderUrl, '_blank');
         }
         alert(`Drive: ${t.exportSuccess}`);
-      } 
+      }
+      else if (type === 'notebooklm') {
+        const result = await backupToDrive(accessToken!, history, {
+          includeAudio: false,
+          generateMissingAudio: false,
+          notebookLMMode: true,
+        });
+
+        if (result?.folderUrl) {
+          window.open(result.folderUrl, '_blank');
+        }
+        setIsNotebookLMGuideOpen(true);
+      }
       else if (type === 'docs') {
         // Docs fallback logic: Login ? API : Download
         if (accessToken) {
-           await exportToDocs(accessToken, history);
-           alert(`Docs: ${t.exportSuccess}`);
+          await exportToDocs(accessToken, history);
+          alert(`Docs: ${t.exportSuccess}`);
         } else {
-           downloadTranscriptLocally(history);
-           alert(t.offlineMode);
+          downloadTranscriptLocally(history);
+          alert(t.offlineMode);
         }
-      } 
+      }
       else if (type === 'classroom') {
         // Open Modal to list courses
         setIsClassroomModalOpen(true);
@@ -696,10 +716,10 @@ export default function App() {
       console.error("Export failed", e);
       // Fallback logic on error
       if (type === 'docs') {
-         downloadTranscriptLocally(history);
-         alert(t.offlineMode);
+        downloadTranscriptLocally(history);
+        alert(t.offlineMode);
       } else {
-         alert("Error: " + (e as Error).message);
+        alert("Error: " + (e as Error).message);
       }
     } finally {
       setIsExporting(false);
@@ -1144,8 +1164,8 @@ export default function App() {
     if (id && cacheKey && settings.audioCacheEnabled) {
       const cached = await getCachedAudioBase64(cacheKey);
       if (cached) {
-        setHistory(prev => prev.map(item => 
-           item.id === id ? { ...item, audioBase64: cached } : item
+        setHistory(prev => prev.map(item =>
+          item.id === id ? { ...item, audioBase64: cached } : item
         ));
         return playAudioFromBase64(cached);
       }
@@ -1184,8 +1204,8 @@ export default function App() {
         }
         const mergedBase64 = arrayBufferToBase64(merged.buffer);
 
-        setHistory(prev => prev.map(item => 
-           item.id === id ? { ...item, audioBase64: mergedBase64 } : item
+        setHistory(prev => prev.map(item =>
+          item.id === id ? { ...item, audioBase64: mergedBase64 } : item
         ));
         if (cacheKey && settings.audioCacheEnabled) {
           await setCachedAudioBase64(cacheKey, mergedBase64);
@@ -1205,7 +1225,7 @@ export default function App() {
     for (const item of history) {
       if (item.translated) {
         await playTTS(item.translated, item.id);
-        await new Promise(r => setTimeout(r, 500)); 
+        await new Promise(r => setTimeout(r, 500));
       }
     }
   };
@@ -1219,7 +1239,7 @@ export default function App() {
         model: MODEL_TRANSLATE,
       });
       const translated = data.translated?.trim() || "";
-      setHistory(prev => prev.map(item => 
+      setHistory(prev => prev.map(item =>
         item.id === id ? { ...item, translated: translated, isTranslating: false } : item
       ));
       if (isAutoPlay && translated) {
@@ -1227,7 +1247,7 @@ export default function App() {
       }
     } catch (e) {
       console.error("Translation failed", e);
-      setHistory(prev => prev.map(item => 
+      setHistory(prev => prev.map(item =>
         item.id === id ? { ...item, translated: "Error", isTranslating: false } : item
       ));
     }
@@ -1276,7 +1296,7 @@ export default function App() {
         return;
       }
       const ai = new GoogleGenAI({ apiKey: tokenData.token, apiVersion: 'v1alpha' });
-      
+
       inputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
       audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
       const inputCtx = inputAudioContextRef.current;
@@ -1333,12 +1353,12 @@ export default function App() {
       const sessionPromise = ai.live.connect({
         model: MODEL_LIVE,
         config: {
-          responseModalities: [Modality.AUDIO], 
+          responseModalities: [Modality.AUDIO],
           speechConfig: {
             voiceConfig: { prebuiltVoiceConfig: { voiceName: selectedVoice.name } },
           },
-          systemInstruction: instruction, 
-          inputAudioTranscription: {}, 
+          systemInstruction: instruction,
+          inputAudioTranscription: {},
         },
         callbacks: {
           onopen: async () => {
@@ -1372,10 +1392,10 @@ export default function App() {
               }
               streamRef.current = stream;
               if (!inputAudioContextRef.current || !audioContextRef.current) return;
-              
+
               const source = inputAudioContextRef.current.createMediaStreamSource(stream);
               const inputGain = inputAudioContextRef.current.createGain();
-              inputGain.gain.value = 1.5; 
+              inputGain.gain.value = 1.5;
               source.connect(inputGain);
 
               const visSource = audioContextRef.current!.createMediaStreamSource(stream);
@@ -1513,26 +1533,26 @@ export default function App() {
         }
       }
     }
-  }, [langInput, langOutput, selectedVoice, cleanupAudio]); 
+  }, [langInput, langOutput, selectedVoice, cleanupAudio]);
 
   connectToGeminiRef.current = connectToGemini;
 
   const toggleMic = () => {
     if (status === ConnectionStatus.CONNECTED || status === ConnectionStatus.CONNECTING) {
-       geminiMicDesiredRef.current = false;
-       geminiConnectIdRef.current += 1;
-       isGeminiConnectingRef.current = false;
-       geminiReconnectAttemptRef.current = 0;
-       if (geminiReconnectTimeoutRef.current) {
-         window.clearTimeout(geminiReconnectTimeoutRef.current);
-         geminiReconnectTimeoutRef.current = null;
-       }
-       if (sessionPromiseRef.current) {
-          sessionPromiseRef.current.then(session => session.close());
-       }
-       cleanupAudio();
-       setStatus(ConnectionStatus.DISCONNECTED);
-       setIsMicOn(false);
+      geminiMicDesiredRef.current = false;
+      geminiConnectIdRef.current += 1;
+      isGeminiConnectingRef.current = false;
+      geminiReconnectAttemptRef.current = 0;
+      if (geminiReconnectTimeoutRef.current) {
+        window.clearTimeout(geminiReconnectTimeoutRef.current);
+        geminiReconnectTimeoutRef.current = null;
+      }
+      if (sessionPromiseRef.current) {
+        sessionPromiseRef.current.then(session => session.close());
+      }
+      cleanupAudio();
+      setStatus(ConnectionStatus.DISCONNECTED);
+      setIsMicOn(false);
     } else {
       connectToGemini();
     }
@@ -1568,7 +1588,7 @@ export default function App() {
 
   return (
     <div className="h-full flex flex-col bg-slate-50 text-slate-900 font-sans overflow-hidden">
-      
+
       {/* --- HEADER --- */}
       <header className="px-5 py-3 bg-white border-b border-gray-100 flex flex-col z-20 shadow-sm shrink-0 gap-2">
         <div className="flex items-center justify-between gap-3">
@@ -1583,202 +1603,211 @@ export default function App() {
             </div>
           </div>
 
-           <div className="flex items-center gap-2 sm:gap-3 justify-end">
+          <div className="flex items-center gap-2 sm:gap-3 justify-end">
 
-           <button
-             onClick={handleNewConversation}
-             aria-label="새 대화"
-             className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-full shadow-sm hover:bg-gray-50 transition-colors text-xs font-bold text-gray-600 whitespace-nowrap"
-           >
-             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-             </svg>
-             <span className="hidden sm:inline">새 대화</span>
-           </button>
+            <button
+              onClick={handleNewConversation}
+              aria-label="새 대화"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-full shadow-sm hover:bg-gray-50 transition-colors text-xs font-bold text-gray-600 whitespace-nowrap"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              <span className="hidden sm:inline">새 대화</span>
+            </button>
 
-           <button
-             onClick={handleOpenHistory}
-             aria-label="이전 히스토리"
-             className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-full shadow-sm hover:bg-gray-50 transition-colors text-xs font-bold text-gray-600 whitespace-nowrap"
-           >
-             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-             </svg>
-             <span className="hidden sm:inline">이전 히스토리</span>
-           </button>
+            <button
+              onClick={handleOpenHistory}
+              aria-label="이전 히스토리"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-full shadow-sm hover:bg-gray-50 transition-colors text-xs font-bold text-gray-600 whitespace-nowrap"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="hidden sm:inline">이전 히스토리</span>
+            </button>
 
-           {/* Export Dropdown */}
-           <div className="relative" ref={exportMenuRef}>
-             <button 
+            {/* Export Dropdown */}
+            <div className="relative" ref={exportMenuRef}>
+              <button
                 onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
                 aria-label={t.exportMenu}
                 disabled={isExporting}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-full shadow-sm hover:bg-gray-50 transition-colors text-xs font-bold text-gray-600 whitespace-nowrap"
-             >
+              >
                 {isExporting ? (
                   <div className="w-4 h-4 border-2 border-indigo-200 border-t-indigo-500 rounded-full animate-spin"></div>
                 ) : (
                   <ExportIcon />
                 )}
                 <span className="hidden sm:inline">{isExporting ? t.exporting : t.exportMenu}</span>
-             </button>
+              </button>
 
-             {isExportMenuOpen && (
-               <div className="absolute top-full right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-50 animate-in fade-in zoom-in-95 duration-200">
-                 <button onClick={() => handleExport('docs')} className="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-3 text-sm text-gray-700 font-medium border-b border-gray-50">
-                   <DocsIcon /> {t.exportDocs}
-                 </button>
-                 <button onClick={() => handleExport('drive')} className="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-3 text-sm text-gray-700 font-medium border-b border-gray-50">
-                   <DriveIcon /> {t.exportDrive}
-                 </button>
-                 <button onClick={() => handleExport('classroom')} className="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-3 text-sm text-gray-700 font-medium">
-                   <ClassroomIcon /> {t.exportClassroom}
-                 </button>
-               </div>
-             )}
-           </div>
+              {isExportMenuOpen && (
+                <div className="absolute top-full right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-50 animate-in fade-in zoom-in-95 duration-200">
+                  <button onClick={() => handleExport('docs')} className="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-3 text-sm text-gray-700 font-medium border-b border-gray-50">
+                    <DocsIcon /> {t.exportDocs}
+                  </button>
+                  <button onClick={() => handleExport('drive')} className="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-3 text-sm text-gray-700 font-medium border-b border-gray-50">
+                    <DriveIcon /> {t.exportDrive}
+                  </button>
+                  <button onClick={() => handleExport('classroom')} className="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-3 text-sm text-gray-700 font-medium border-b border-gray-50">
+                    <ClassroomIcon /> {t.exportClassroom}
+                  </button>
+                  <button onClick={() => handleExport('notebooklm')} className="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-3 text-sm text-gray-700 font-medium">
+                    <NotebookLMIcon /> {t.exportNotebookLM}
+                  </button>
+                </div>
+              )}
+            </div>
 
-           <div className="relative" ref={notificationMenuRef}>
-             <button
-               onClick={() => setIsNotificationMenuOpen(!isNotificationMenuOpen)}
-               aria-label="알림"
-               className="relative flex items-center justify-center w-9 h-9 bg-white border border-gray-200 rounded-full shadow-sm hover:bg-gray-50 transition-colors"
-             >
-               <BellIcon />
-               {unreadVisionCount > 0 && (
-                 <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
-                   {unreadVisionCount}
-                 </span>
-               )}
-             </button>
+            {!accessToken && (
+              <span className="hidden sm:inline text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-3 py-1 whitespace-nowrap">
+                Drive·Classroom 사용을 위해 Google 로그인이 필요합니다
+              </span>
+            )}
 
-             {isNotificationMenuOpen && (
-               <div className="absolute top-full right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-50 animate-in fade-in zoom-in-95 duration-200">
-                 {visionNotifications.length === 0 ? (
-                   <div className="px-4 py-3 text-xs text-gray-400">알림이 없습니다.</div>
-                 ) : (
-                   <div className="max-h-[60vh] overflow-y-auto">
-                     {visionNotifications.slice(0, 20).map((n) => {
-                       const statusLabel =
-                         n.status === 'processing'
-                           ? t.visionAnalyzing
-                           : n.status === 'done'
-                             ? t.exportSuccess
-                             : t.visionFail;
+            <div className="relative" ref={notificationMenuRef}>
+              <button
+                onClick={() => setIsNotificationMenuOpen(!isNotificationMenuOpen)}
+                aria-label="알림"
+                className="relative flex items-center justify-center w-9 h-9 bg-white border border-gray-200 rounded-full shadow-sm hover:bg-gray-50 transition-colors"
+              >
+                <BellIcon />
+                {unreadVisionCount > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
+                    {unreadVisionCount}
+                  </span>
+                )}
+              </button>
 
-                       const statusClass =
-                         n.status === 'processing'
-                           ? 'text-gray-500'
-                           : n.status === 'done'
-                             ? 'text-emerald-600'
-                             : 'text-red-600';
+              {isNotificationMenuOpen && (
+                <div className="absolute top-full right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-50 animate-in fade-in zoom-in-95 duration-200">
+                  {visionNotifications.length === 0 ? (
+                    <div className="px-4 py-3 text-xs text-gray-400">알림이 없습니다.</div>
+                  ) : (
+                    <div className="max-h-[60vh] overflow-y-auto">
+                      {visionNotifications.slice(0, 20).map((n) => {
+                        const statusLabel =
+                          n.status === 'processing'
+                            ? t.visionAnalyzing
+                            : n.status === 'done'
+                              ? t.exportSuccess
+                              : t.visionFail;
 
-                       const snippet =
-                         n.status === 'done'
-                           ? (n.result?.translatedText || n.result?.originalText || t.visionNoText).trim().slice(0, 60)
-                           : n.status === 'error'
-                             ? (n.error || t.visionFail).trim().slice(0, 60)
-                             : '';
+                        const statusClass =
+                          n.status === 'processing'
+                            ? 'text-gray-500'
+                            : n.status === 'done'
+                              ? 'text-emerald-600'
+                              : 'text-red-600';
 
-                       return (
-                         <button
-                           key={n.id}
-                           onClick={() => openVisionNotification(n.id)}
-                           className="w-full text-left px-4 py-3 hover:bg-gray-50 flex flex-col gap-1 border-b border-gray-50 last:border-0"
-                         >
-                           <div className="flex items-center justify-between gap-2">
-                             <div className="flex items-center gap-2 min-w-0">
-                               {!n.isRead && n.status !== 'processing' ? (
-                                 <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
-                               ) : (
-                                 <span className="w-2 h-2 rounded-full bg-transparent shrink-0" />
-                               )}
-                               <div className="text-xs font-bold text-gray-700 truncate">{t.visionTitle}</div>
-                             </div>
-                             <div className={`text-[10px] font-bold shrink-0 ${statusClass}`}>{statusLabel}</div>
-                           </div>
-                           {snippet ? (
-                             <div className="text-[11px] text-gray-500 whitespace-pre-wrap break-words">{snippet}</div>
-                           ) : null}
-                         </button>
-                       );
-                     })}
-                   </div>
-                 )}
-               </div>
-             )}
-           </div>
+                        const snippet =
+                          n.status === 'done'
+                            ? (n.result?.translatedText || n.result?.originalText || t.visionNoText).trim().slice(0, 60)
+                            : n.status === 'error'
+                              ? (n.error || t.visionFail).trim().slice(0, 60)
+                              : '';
 
-           {/* AUTH BUTTON */}
-           {user && !user.isAnonymous ? (
-             <div className="relative" ref={profileMenuRef}>
-               <button
-                 onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-                 aria-label="프로필 메뉴"
-                 className="flex items-center gap-2 bg-gray-50 rounded-full pl-1 pr-2 py-1 border border-gray-200 whitespace-nowrap hover:bg-gray-100 transition-colors"
-               >
-                   {user.photoURL ? (
-                     <img src={user.photoURL} alt="Profile" className="w-7 h-7 rounded-full" />
-                   ) : (
-                     <div className="w-7 h-7 bg-indigo-500 rounded-full text-white flex items-center justify-center text-xs">{user.email ? user.email[0] : (user.displayName ? user.displayName[0] : 'U')}</div>
-                   )}
-                   <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                   </svg>
-               </button>
+                        return (
+                          <button
+                            key={n.id}
+                            onClick={() => openVisionNotification(n.id)}
+                            className="w-full text-left px-4 py-3 hover:bg-gray-50 flex flex-col gap-1 border-b border-gray-50 last:border-0"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2 min-w-0">
+                                {!n.isRead && n.status !== 'processing' ? (
+                                  <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
+                                ) : (
+                                  <span className="w-2 h-2 rounded-full bg-transparent shrink-0" />
+                                )}
+                                <div className="text-xs font-bold text-gray-700 truncate">{t.visionTitle}</div>
+                              </div>
+                              <div className={`text-[10px] font-bold shrink-0 ${statusClass}`}>{statusLabel}</div>
+                            </div>
+                            {snippet ? (
+                              <div className="text-[11px] text-gray-500 whitespace-pre-wrap break-words">{snippet}</div>
+                            ) : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
-               {isProfileMenuOpen && (
-                 <div className="absolute top-full right-0 mt-2 w-44 bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-50 animate-in fade-in zoom-in-95 duration-200">
-                   <button
-                     onClick={openSettings}
-                     className="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-3 text-sm text-gray-700 font-medium border-b border-gray-50"
-                   >
-                       <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                       </svg>
-                       설정
-                   </button>
+            {/* AUTH BUTTON */}
+            {user && !user.isAnonymous ? (
+              <div className="relative" ref={profileMenuRef}>
+                <button
+                  onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+                  aria-label="프로필 메뉴"
+                  className="flex items-center gap-2 bg-gray-50 rounded-full pl-1 pr-2 py-1 border border-gray-200 whitespace-nowrap hover:bg-gray-100 transition-colors"
+                >
+                  {user.photoURL ? (
+                    <img src={user.photoURL} alt="Profile" className="w-7 h-7 rounded-full" />
+                  ) : (
+                    <div className="w-7 h-7 bg-indigo-500 rounded-full text-white flex items-center justify-center text-xs">{user.email ? user.email[0] : (user.displayName ? user.displayName[0] : 'U')}</div>
+                  )}
+                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
 
-                   {isAdmin && (
-                     <button
-                       onClick={() => {
-                         setIsProfileMenuOpen(false);
-                         setIsAdminPanelOpen(true);
-                       }}
-                       className="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-3 text-sm text-gray-700 font-medium border-b border-gray-50"
-                     >
-                       <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622C17.176 19.29 21 14.59 21 9c0-1.042-.133-2.052-.382-3.016z" />
-                       </svg>
-                       관리자 모드
-                     </button>
-                   )}
+                {isProfileMenuOpen && (
+                  <div className="absolute top-full right-0 mt-2 w-44 bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-50 animate-in fade-in zoom-in-95 duration-200">
+                    <button
+                      onClick={openSettings}
+                      className="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-3 text-sm text-gray-700 font-medium border-b border-gray-50"
+                    >
+                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      설정
+                    </button>
 
-                   <button
-                     onClick={() => {
-                       setIsProfileMenuOpen(false);
-                       handleLogout();
-                     }}
-                     className="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-3 text-sm text-gray-700 font-medium"
-                   >
-                       <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                       </svg>
-                       로그아웃
-                   </button>
-                 </div>
-               )}
-             </div>
-           ) : (
-             <button
-               onClick={() => setIsLoginModalOpen(true)}
-               aria-label="로그인"
-               className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-full shadow-sm hover:bg-gray-50 transition-colors text-xs font-bold text-indigo-600 whitespace-nowrap"
-             >
-               {uiLangCode === 'ko' ? '로그인' : 'Login'}
-             </button>
-           )}
+                    {isAdmin && (
+                      <button
+                        onClick={() => {
+                          setIsProfileMenuOpen(false);
+                          setIsAdminPanelOpen(true);
+                        }}
+                        className="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-3 text-sm text-gray-700 font-medium border-b border-gray-50"
+                      >
+                        <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622C17.176 19.29 21 14.59 21 9c0-1.042-.133-2.052-.382-3.016z" />
+                        </svg>
+                        관리자 모드
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() => {
+                        setIsProfileMenuOpen(false);
+                        handleLogout();
+                      }}
+                      className="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-3 text-sm text-gray-700 font-medium"
+                    >
+                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                      </svg>
+                      로그아웃
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <button
+                onClick={() => setIsLoginModalOpen(true)}
+                aria-label="로그인"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-full shadow-sm hover:bg-gray-50 transition-colors text-xs font-bold text-indigo-600 whitespace-nowrap"
+              >
+                {uiLangCode === 'ko' ? '로그인' : 'Login'}
+              </button>
+            )}
           </div>
         </div>
 
@@ -1786,7 +1815,7 @@ export default function App() {
           {/* Voice Selector */}
           <div className="flex items-center bg-gray-100 rounded-full px-3 py-1.5 border border-gray-200">
             <span className="text-[10px] text-gray-500 font-bold mr-2 uppercase tracking-wide whitespace-nowrap">{t.voiceLabel}</span>
-            <select 
+            <select
               value={selectedVoice.name}
               onChange={(e) => {
                 const v = VOICE_OPTIONS.find(v => v.name === e.target.value);
@@ -1803,11 +1832,10 @@ export default function App() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setIsOutputOnly(!isOutputOnly)}
-              className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-colors whitespace-nowrap ${
-                isOutputOnly
-                  ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
-                  : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
-              }`}
+              className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-colors whitespace-nowrap ${isOutputOnly
+                ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
+                : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
+                }`}
             >
               출력만
             </button>
@@ -1815,7 +1843,7 @@ export default function App() {
             {/* UI Language */}
             <div className="flex items-center gap-1 bg-white rounded-full px-2 py-1.5 border border-gray-200 cursor-pointer hover:bg-gray-50 min-w-[70px]">
               <GlobeIcon />
-              <select 
+              <select
                 value={uiLangCode}
                 onChange={(e) => setUiLangCode(e.target.value)}
                 className="bg-transparent text-xs font-medium text-gray-600 outline-none cursor-pointer w-full"
@@ -1880,49 +1908,49 @@ export default function App() {
       <div className="bg-white px-4 py-4 shadow-sm z-10 flex flex-col gap-3 shrink-0">
         {/* Language Pair */}
         <div className="flex items-center justify-between gap-2 bg-gray-50 p-1.5 rounded-2xl border border-gray-200">
-           {/* Input Language */}
-           <div className="flex-1 flex flex-col items-center min-w-0">
-              <span className="text-[10px] text-gray-800 font-bold mb-1 whitespace-nowrap">{t.inputLang}</span>
-              <div className="w-full relative px-2 py-1">
-                 <select
-                  value={langInput.code}
-                  onChange={(e) => {
-                    isLangAutoRef.current = false;
-                    const l = SUPPORTED_LANGUAGES.find(l => l.code === e.target.value);
-                    if (l) setLangInput(l);
-                  }}
-                  className="opacity-0 absolute inset-0 w-full h-full z-10 cursor-pointer"
-                 >
-                   {SUPPORTED_LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.flag} {l.name}</option>)}
-                 </select>
-                 <div className="text-sm font-bold text-gray-900 truncate max-w-[120px] sm:max-w-xs text-center">
-                    {langInput.flag} {langInput.name}
-                 </div>
+          {/* Input Language */}
+          <div className="flex-1 flex flex-col items-center min-w-0">
+            <span className="text-[10px] text-gray-800 font-bold mb-1 whitespace-nowrap">{t.inputLang}</span>
+            <div className="w-full relative px-2 py-1">
+              <select
+                value={langInput.code}
+                onChange={(e) => {
+                  isLangAutoRef.current = false;
+                  const l = SUPPORTED_LANGUAGES.find(l => l.code === e.target.value);
+                  if (l) setLangInput(l);
+                }}
+                className="opacity-0 absolute inset-0 w-full h-full z-10 cursor-pointer"
+              >
+                {SUPPORTED_LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.flag} {l.name}</option>)}
+              </select>
+              <div className="text-sm font-bold text-gray-900 truncate max-w-[120px] sm:max-w-xs text-center">
+                {langInput.flag} {langInput.name}
               </div>
-           </div>
-           
-           <div className="text-gray-300 shrink-0"><ArrowRightIcon /></div>
+            </div>
+          </div>
 
-           {/* Output Language */}
-           <div className="flex-1 flex flex-col items-center min-w-0">
-              <span className="text-[10px] text-gray-800 font-bold mb-1 whitespace-nowrap">{t.outputLang}</span>
-               <div className="w-full relative px-2 py-1">
-                 <select
-                  value={langOutput.code}
-                  onChange={(e) => {
-                    isLangAutoRef.current = false;
-                    const l = SUPPORTED_LANGUAGES.find(l => l.code === e.target.value);
-                    if (l) setLangOutput(l);
-                  }}
-                  className="opacity-0 absolute inset-0 w-full h-full z-10 cursor-pointer"
-                 >
-                   {SUPPORTED_LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.flag} {l.name}</option>)}
-                 </select>
-                 <div className="text-sm font-bold text-gray-900 truncate max-w-[120px] sm:max-w-xs text-center">
-                    {langOutput.flag} {langOutput.name}
-                 </div>
+          <div className="text-gray-300 shrink-0"><ArrowRightIcon /></div>
+
+          {/* Output Language */}
+          <div className="flex-1 flex flex-col items-center min-w-0">
+            <span className="text-[10px] text-gray-800 font-bold mb-1 whitespace-nowrap">{t.outputLang}</span>
+            <div className="w-full relative px-2 py-1">
+              <select
+                value={langOutput.code}
+                onChange={(e) => {
+                  isLangAutoRef.current = false;
+                  const l = SUPPORTED_LANGUAGES.find(l => l.code === e.target.value);
+                  if (l) setLangOutput(l);
+                }}
+                className="opacity-0 absolute inset-0 w-full h-full z-10 cursor-pointer"
+              >
+                {SUPPORTED_LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.flag} {l.name}</option>)}
+              </select>
+              <div className="text-sm font-bold text-gray-900 truncate max-w-[120px] sm:max-w-xs text-center">
+                {langOutput.flag} {langOutput.name}
               </div>
-           </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1930,268 +1958,276 @@ export default function App() {
       <div className="flex-1 overflow-hidden relative bg-slate-50 flex flex-col">
         {/* Visualizer Background */}
         <div className="absolute top-0 left-0 right-0 h-32 opacity-30 pointer-events-none z-0">
-           <Visualizer analyser={analyser} isActive={isMicOn} color="#6366f1" />
+          <Visualizer analyser={analyser} isActive={isMicOn} color="#6366f1" />
         </div>
 
         {/* Scrollable Content */}
-        <div 
+        <div
           ref={historyRef}
           className="flex-1 overflow-y-auto p-4 z-10 relative scroll-smooth"
         >
-           {history.length === 0 && !currentTurnText && (
-             <div className="h-full flex flex-col items-center justify-center text-gray-400 text-center px-6 opacity-60">
-                <MicIcon />
-                <p className="mt-4 whitespace-pre-wrap text-sm">{t.emptyHint}</p>
+          {history.length === 0 && !currentTurnText && (
+            <div className="h-full flex flex-col items-center justify-center text-gray-400 text-center px-6 opacity-60">
+              <MicIcon />
+              <p className="mt-4 whitespace-pre-wrap text-sm">{t.emptyHint}</p>
+              <div className="mt-4 w-full max-w-xl text-left space-y-2 text-[12px] text-gray-500 bg-white/80 border border-gray-200 rounded-2xl p-4 shadow-sm">
+                <div className="font-bold text-gray-700 text-sm">빠른 안내</div>
+                <ul className="list-disc list-inside space-y-1">
+                  <li>마이크 버튼을 눌러 실시간 번역을 시작하세요.</li>
+                  <li>Google 로그인 시 Drive 백업·Classroom 제출·Docs 저장 기능 사용 가능.</li>
+                  <li>칠판 촬영(비전)으로 사진 속 텍스트를 감지해 번역합니다.</li>
+                  <li>자동 읽기/자동 스크롤 토글로 듣기/보기 방식을 선택하세요.</li>
+                </ul>
+                <div className="grid grid-cols-2 gap-2 text-[11px]">
+                  <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2">
+                    <div className="font-bold text-gray-700">단축키</div>
+                    <div className="mt-1 text-gray-500">스페이스: 마이크 on/off<br />Enter: 최근 번역 듣기</div>
+                  </div>
+                  <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2">
+                    <div className="font-bold text-gray-700">모바일 팁</div>
+                    <div className="mt-1 text-gray-500">하단 고정 버튼으로 한 손 조작, 세로 모드 최적화</div>
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={toggleMic}
+                className="mt-6 px-5 py-2.5 rounded-full bg-indigo-600 text-white text-sm font-bold shadow-md hover:bg-indigo-700 transition-colors active:scale-95"
+              >
+                {status === ConnectionStatus.CONNECTING
+                  ? t.connecting
+                  : status === ConnectionStatus.ERROR
+                    ? t.retry
+                    : t.statusStandby}
+              </button>
+            </div>
+          )}
+
+          <div className="flex flex-col gap-4">
+            {(status === ConnectionStatus.CONNECTING || status === ConnectionStatus.ERROR) && (
+              <div
+                className={`px-4 py-3 rounded-xl border shadow-sm flex items-start justify-between gap-3 ${status === ConnectionStatus.ERROR
+                  ? 'bg-red-50 border-red-200'
+                  : 'bg-indigo-50 border-indigo-100'
+                  }`}
+              >
+                <div className="min-w-0 flex-1">
+                  <div
+                    className={`text-xs font-bold flex items-center gap-2 ${status === ConnectionStatus.ERROR ? 'text-red-700' : 'text-indigo-700'
+                      }`}
+                  >
+                    {status === ConnectionStatus.CONNECTING && (
+                      <div className="w-4 h-4 border-2 border-indigo-300 border-t-indigo-700 rounded-full animate-spin" />
+                    )}
+                    <span>
+                      {status === ConnectionStatus.CONNECTING ? t.connecting : t.connectionError}
+                    </span>
+                  </div>
+                  {status === ConnectionStatus.ERROR && !!errorMessage && (
+                    <div className="mt-1 text-xs text-red-700/80 break-words">{errorMessage}</div>
+                  )}
+                </div>
+                {status === ConnectionStatus.ERROR && (
+                  <button
+                    onClick={() => {
+                      setErrorMessage('');
+                      connectToGemini();
+                    }}
+                    className="shrink-0 px-3 py-1.5 rounded-full bg-red-600 text-white text-xs font-bold hover:bg-red-700 transition-colors"
+                  >
+                    {t.retry}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {hiddenHistoryCount > 0 && (
+              <div className="flex justify-center">
                 <button
-                  onClick={toggleMic}
-                  className="mt-6 px-5 py-2.5 rounded-full bg-indigo-600 text-white text-sm font-bold shadow-md hover:bg-indigo-700 transition-colors active:scale-95"
+                  onClick={handleLoadMoreHistory}
+                  className="px-4 py-2 rounded-full bg-white border border-gray-200 shadow-sm hover:bg-gray-50 transition-colors text-xs font-bold text-gray-600"
                 >
-                  {status === ConnectionStatus.CONNECTING
-                    ? t.connecting
-                    : status === ConnectionStatus.ERROR
-                      ? t.retry
-                      : t.statusStandby}
+                  {t.loadMoreHistory}
                 </button>
-             </div>
-           )}
+              </div>
+            )}
 
-           <div className="flex flex-col gap-4">
-             {(status === ConnectionStatus.CONNECTING || status === ConnectionStatus.ERROR) && (
-               <div
-                 className={`px-4 py-3 rounded-xl border shadow-sm flex items-start justify-between gap-3 ${
-                   status === ConnectionStatus.ERROR
-                     ? 'bg-red-50 border-red-200'
-                     : 'bg-indigo-50 border-indigo-100'
-                 }`}
-               >
-                 <div className="min-w-0 flex-1">
-                   <div
-                     className={`text-xs font-bold flex items-center gap-2 ${
-                       status === ConnectionStatus.ERROR ? 'text-red-700' : 'text-indigo-700'
-                     }`}
-                   >
-                     {status === ConnectionStatus.CONNECTING && (
-                       <div className="w-4 h-4 border-2 border-indigo-300 border-t-indigo-700 rounded-full animate-spin" />
-                     )}
-                     <span>
-                       {status === ConnectionStatus.CONNECTING ? t.connecting : t.connectionError}
-                     </span>
-                   </div>
-                   {status === ConnectionStatus.ERROR && !!errorMessage && (
-                     <div className="mt-1 text-xs text-red-700/80 break-words">{errorMessage}</div>
-                   )}
-                 </div>
-                 {status === ConnectionStatus.ERROR && (
-                   <button
-                     onClick={() => {
-                       setErrorMessage('');
-                       connectToGemini();
-                     }}
-                     className="shrink-0 px-3 py-1.5 rounded-full bg-red-600 text-white text-xs font-bold hover:bg-red-700 transition-colors"
-                   >
-                     {t.retry}
-                   </button>
-                 )}
-               </div>
-             )}
+            {visibleHistory.map((item) => (
+              isOutputOnly ? (
+                <div key={item.id} className="border-b border-gray-100 pb-4 last:border-0 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  <div
+                    role={!item.isTranslating && !!item.translated ? 'button' : undefined}
+                    tabIndex={!item.isTranslating && !!item.translated ? 0 : undefined}
+                    onClick={() => {
+                      if (!item.isTranslating && item.translated) {
+                        playTTS(item.translated, item.id, true);
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        if (!item.isTranslating && item.translated) {
+                          playTTS(item.translated, item.id, true);
+                        }
+                      }
+                    }}
+                    className={`relative p-4 rounded-xl shadow-sm flex flex-col justify-between transition-colors ${item.isTranslating ? 'bg-gray-100 border border-gray-200' : 'bg-indigo-50 border border-indigo-100'
+                      } ${!item.isTranslating && item.translated ? 'cursor-pointer hover:bg-indigo-100 active:scale-[0.99]' : ''
+                      }`}
+                  >
+                    {item.isTranslating ? (
+                      <div className="flex gap-1 h-6 items-center">
+                        <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></div>
+                        <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce delay-75"></div>
+                        <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce delay-150"></div>
+                      </div>
+                    ) : (
+                      <span className="text-indigo-900 font-medium leading-relaxed text-sm md:text-base">{item.translated}</span>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div key={item.id} className="grid grid-cols-2 gap-4 items-stretch border-b border-gray-100 pb-4 last:border-0 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  <div className="bg-white border border-gray-200 p-4 rounded-xl shadow-sm text-gray-800 leading-relaxed text-sm md:text-base">
+                    {item.original}
+                  </div>
+                  <div
+                    role={!item.isTranslating && !!item.translated ? 'button' : undefined}
+                    tabIndex={!item.isTranslating && !!item.translated ? 0 : undefined}
+                    onClick={() => {
+                      if (!item.isTranslating && item.translated) {
+                        playTTS(item.translated, item.id);
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        if (!item.isTranslating && item.translated) {
+                          playTTS(item.translated, item.id);
+                        }
+                      }
+                    }}
+                    className={`relative p-4 rounded-xl shadow-sm flex flex-col justify-between transition-colors ${item.isTranslating ? 'bg-gray-100 border border-gray-200' : 'bg-indigo-50 border border-indigo-100'
+                      } ${!item.isTranslating && item.translated ? 'cursor-pointer hover:bg-indigo-100 active:scale-[0.99]' : ''
+                      }`}
+                  >
+                    {item.isTranslating ? (
+                      <div className="flex gap-1 h-6 items-center">
+                        <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></div>
+                        <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce delay-75"></div>
+                        <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce delay-150"></div>
+                      </div>
+                    ) : (
+                      <span className="text-indigo-900 font-medium leading-relaxed text-sm md:text-base">{item.translated}</span>
+                    )}
+                  </div>
+                </div>
+              )
+            ))}
 
-             {hiddenHistoryCount > 0 && (
-               <div className="flex justify-center">
-                 <button
-                   onClick={handleLoadMoreHistory}
-                   className="px-4 py-2 rounded-full bg-white border border-gray-200 shadow-sm hover:bg-gray-50 transition-colors text-xs font-bold text-gray-600"
-                 >
-                   {t.loadMoreHistory}
-                 </button>
-               </div>
-             )}
+            {/* Live Transcription Placeholder (Left Side) */}
+            {currentTurnText && (
+              isOutputOnly ? (
+                <div className="opacity-70">
+                  <div className="flex items-center justify-center text-gray-300 text-sm italic border border-gray-200 border-dashed p-4 rounded-xl bg-white">
+                    ...
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-4 opacity-70">
+                  <div className="bg-gray-50 border border-gray-300 border-dashed p-4 rounded-xl text-gray-600 italic animate-pulse">
+                    {currentTurnText}
+                  </div>
+                  <div className="flex items-center justify-center text-gray-300 text-sm italic">
+                    ...
+                  </div>
+                </div>
+              )
+            )}
+          </div>
 
-             {visibleHistory.map((item) => (
-               isOutputOnly ? (
-                 <div key={item.id} className="border-b border-gray-100 pb-4 last:border-0 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                   <div 
-                     role={!item.isTranslating && !!item.translated ? 'button' : undefined}
-                     tabIndex={!item.isTranslating && !!item.translated ? 0 : undefined}
-                     onClick={() => {
-                       if (!item.isTranslating && item.translated) {
-                         playTTS(item.translated, item.id, true);
-                       }
-                     }}
-                     onKeyDown={(e) => {
-                       if (e.key === 'Enter' || e.key === ' ') {
-                         e.preventDefault();
-                         if (!item.isTranslating && item.translated) {
-                           playTTS(item.translated, item.id, true);
-                         }
-                       }
-                     }}
-                     className={`relative p-4 rounded-xl shadow-sm flex flex-col justify-between transition-colors ${
-                       item.isTranslating ? 'bg-gray-100 border border-gray-200' : 'bg-indigo-50 border border-indigo-100'
-                     } ${
-                       !item.isTranslating && item.translated ? 'cursor-pointer hover:bg-indigo-100 active:scale-[0.99]' : ''
-                     }`}
-                   >
-                     {item.isTranslating ? (
-                       <div className="flex gap-1 h-6 items-center">
-                         <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></div>
-                         <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce delay-75"></div>
-                         <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce delay-150"></div>
-                       </div>
-                     ) : (
-                       <span className="text-indigo-900 font-medium leading-relaxed text-sm md:text-base">{item.translated}</span>
-                     )}
-                   </div>
-                 </div>
-               ) : (
-                 <div key={item.id} className="grid grid-cols-2 gap-4 items-stretch border-b border-gray-100 pb-4 last:border-0 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                   <div className="bg-white border border-gray-200 p-4 rounded-xl shadow-sm text-gray-800 leading-relaxed text-sm md:text-base">
-                     {item.original}
-                   </div>
-                   <div 
-                     role={!item.isTranslating && !!item.translated ? 'button' : undefined}
-                     tabIndex={!item.isTranslating && !!item.translated ? 0 : undefined}
-                     onClick={() => {
-                       if (!item.isTranslating && item.translated) {
-                         playTTS(item.translated, item.id);
-                       }
-                     }}
-                     onKeyDown={(e) => {
-                       if (e.key === 'Enter' || e.key === ' ') {
-                         e.preventDefault();
-                         if (!item.isTranslating && item.translated) {
-                           playTTS(item.translated, item.id);
-                         }
-                       }
-                     }}
-                     className={`relative p-4 rounded-xl shadow-sm flex flex-col justify-between transition-colors ${
-                       item.isTranslating ? 'bg-gray-100 border border-gray-200' : 'bg-indigo-50 border border-indigo-100'
-                     } ${
-                       !item.isTranslating && item.translated ? 'cursor-pointer hover:bg-indigo-100 active:scale-[0.99]' : ''
-                     }`}
-                   >
-                     {item.isTranslating ? (
-                       <div className="flex gap-1 h-6 items-center">
-                         <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></div>
-                         <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce delay-75"></div>
-                         <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce delay-150"></div>
-                       </div>
-                     ) : (
-                       <span className="text-indigo-900 font-medium leading-relaxed text-sm md:text-base">{item.translated}</span>
-                     )}
-                   </div>
-                 </div>
-               )
-             ))}
-
-             {/* Live Transcription Placeholder (Left Side) */}
-             {currentTurnText && (
-               isOutputOnly ? (
-                 <div className="opacity-70">
-                   <div className="flex items-center justify-center text-gray-300 text-sm italic border border-gray-200 border-dashed p-4 rounded-xl bg-white">
-                     ...
-                   </div>
-                 </div>
-               ) : (
-                 <div className="grid grid-cols-2 gap-4 opacity-70">
-                    <div className="bg-gray-50 border border-gray-300 border-dashed p-4 rounded-xl text-gray-600 italic animate-pulse">
-                      {currentTurnText}
-                    </div>
-                    <div className="flex items-center justify-center text-gray-300 text-sm italic">
-                      ...
-                    </div>
-                 </div>
-               )
-             )}
-           </div>
-
-           <div className="h-20"></div> {/* Spacer for bottom bar */}
+          <div className="h-20"></div> {/* Spacer for bottom bar */}
         </div>
       </div>
 
       {/* --- BOTTOM CONTROLS --- */}
       <div className="bg-white px-6 py-4 rounded-t-[2rem] shadow-[0_-5px_20px_rgba(0,0,0,0.05)] flex items-center justify-between z-30 shrink-0">
-          
-          <div className="flex items-center gap-0">
-            <button 
-              onClick={() => setIsAutoPlay(!isAutoPlay)}
-              className={`flex flex-col items-center gap-1 transition-colors w-16 ${
-                isAutoPlay ? 'text-indigo-600' : 'text-gray-500'
-              }`}
-            >
-              <div className={`p-3 rounded-full ${
-                isAutoPlay ? 'bg-indigo-100' : 'bg-gray-100'
-              }`}>
-                <SpeakerIcon />
-              </div>
-              <span className="text-[10px] font-bold">{t.autoPlay}</span>
-            </button>
 
-            <button 
-              onClick={() => setIsScrollLocked(!isScrollLocked)}
-              className={`flex flex-col items-center gap-1 transition-colors w-16 ${
-                !isScrollLocked ? 'text-indigo-600' : 'text-gray-500'
-              }`}
-            >
-              <div className={`p-3 rounded-full ${
-                !isScrollLocked ? 'bg-indigo-100' : 'bg-gray-100'
-              }`}>
-                {isScrollLocked ? (
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                  </svg>
-                ) : (
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
-                  </svg>
-                )}
-              </div>
-              <span className="text-[10px] font-bold">자동스크롤</span>
-            </button>
-          </div>
-
-          {/* Main Mic */}
+        <div className="flex items-center gap-0">
           <button
-            onClick={toggleMic}
-            className={`w-20 h-20 -mt-10 rounded-full flex items-center justify-center shadow-xl border-4 border-white transition-all transform active:scale-95 ${
-              status === ConnectionStatus.CONNECTED 
-                ? 'bg-red-500 text-white shadow-red-200 ring-4 ring-red-50' 
-                : 'bg-indigo-600 text-white shadow-indigo-200 ring-4 ring-indigo-50'
-            }`}
+            onClick={() => setIsAutoPlay(!isAutoPlay)}
+            className={`flex flex-col items-center gap-1 transition-colors w-16 ${isAutoPlay ? 'text-indigo-600' : 'text-gray-500'
+              }`}
           >
-            {status === ConnectionStatus.CONNECTING ? (
-               <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-            ) : status === ConnectionStatus.CONNECTED ? (
-              <MicOffIcon />
-            ) : (
-              <MicIcon />
-            )}
+            <div className={`p-3 rounded-full ${isAutoPlay ? 'bg-indigo-100' : 'bg-gray-100'
+              }`}>
+              <SpeakerIcon />
+            </div>
+            <span className="text-[10px] font-bold">{t.autoPlay}</span>
           </button>
 
-          <div className="flex items-center gap-0">
-            <button 
-              onClick={playAll}
-              className="flex flex-col items-center gap-1 text-gray-500 hover:text-indigo-600 transition-colors w-16"
-            >
-              <div className="p-3 bg-gray-100 rounded-full">
-                <PlayAllIcon />
-              </div>
-              <span className="text-[10px] font-bold">{t.playAll}</span>
-            </button>
+          <button
+            onClick={() => setIsScrollLocked(!isScrollLocked)}
+            className={`flex flex-col items-center gap-1 transition-colors w-16 ${!isScrollLocked ? 'text-indigo-600' : 'text-gray-500'
+              }`}
+          >
+            <div className={`p-3 rounded-full ${!isScrollLocked ? 'bg-indigo-100' : 'bg-gray-100'
+              }`}>
+              {isScrollLocked ? (
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              ) : (
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+                </svg>
+              )}
+            </div>
+            <span className="text-[10px] font-bold">자동스크롤</span>
+          </button>
+        </div>
 
-            <button 
-              onClick={() => setIsCameraOpen(true)}
-              className="flex flex-col items-center gap-1 text-gray-500 hover:text-indigo-600 transition-colors w-16"
-            >
-               <div className="p-3 bg-gray-100 rounded-full">
-                 <CameraIcon />
-               </div>
-               <span className="text-[10px] font-bold">{t.visionButton}</span>
-            </button>
-          </div>
+        {/* Main Mic */}
+        <button
+          onClick={toggleMic}
+          className={`w-20 h-20 -mt-10 rounded-full flex items-center justify-center shadow-xl border-4 border-white transition-all transform active:scale-95 ${status === ConnectionStatus.CONNECTED
+            ? 'bg-red-500 text-white shadow-red-200 ring-4 ring-red-50'
+            : 'bg-indigo-600 text-white shadow-indigo-200 ring-4 ring-indigo-50'
+            }`}
+        >
+          {status === ConnectionStatus.CONNECTING ? (
+            <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+          ) : status === ConnectionStatus.CONNECTED ? (
+            <MicOffIcon />
+          ) : (
+            <MicIcon />
+          )}
+        </button>
+
+        <div className="flex items-center gap-0">
+          <button
+            onClick={playAll}
+            className="flex flex-col items-center gap-1 text-gray-500 hover:text-indigo-600 transition-colors w-16"
+          >
+            <div className="p-3 bg-gray-100 rounded-full">
+              <PlayAllIcon />
+            </div>
+            <span className="text-[10px] font-bold">{t.playAll}</span>
+          </button>
+
+          <button
+            onClick={() => setIsCameraOpen(true)}
+            className="flex flex-col items-center gap-1 text-gray-500 hover:text-indigo-600 transition-colors w-16"
+          >
+            <div className="p-3 bg-gray-100 rounded-full">
+              <CameraIcon />
+            </div>
+            <span className="text-[10px] font-bold">{t.visionButton}</span>
+          </button>
+        </div>
       </div>
 
-      <CameraView 
-        isOpen={isCameraOpen} 
+      <CameraView
+        isOpen={isCameraOpen}
         onClose={() => setIsCameraOpen(false)}
         onCaptured={handleVisionCaptured}
         t={t}
@@ -2256,94 +2292,94 @@ export default function App() {
       {/* --- LOGIN MODAL --- */}
       {isLoginModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-           <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden flex flex-col p-6" role="dialog" aria-label="로그인">
-              <div className="text-center mb-6">
-                 <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-3 text-indigo-600">
-                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" /></svg>
-                 </div>
-                 <h2 className="text-xl font-bold text-gray-800">{t.loginModalTitle}</h2>
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden flex flex-col p-6" role="dialog" aria-label="로그인">
+            <div className="text-center mb-6">
+              <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-3 text-indigo-600">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" /></svg>
               </div>
-              
-              <div className="space-y-3">
-                 {/* Google Login Button */}
-                 <button 
-                    onClick={() => handleLoginSelection('google')}
-                    className="w-full flex items-center p-4 rounded-xl border border-gray-200 hover:border-blue-200 hover:bg-blue-50 transition-all group text-left relative overflow-hidden"
-                 >
-                    <div className="bg-white p-2 rounded-full shadow-sm mr-4 z-10">
-                      <GoogleLogo />
-                    </div>
-                    <div className="z-10">
-                       <h3 className="font-bold text-gray-800 group-hover:text-blue-700">{t.loginGoogle}</h3>
-                       <p className="text-xs text-gray-500 mt-0.5">{t.loginGoogleDesc}</p>
-                    </div>
-                    <div className="absolute inset-0 border-2 border-transparent group-hover:border-blue-100 rounded-xl pointer-events-none"></div>
-                 </button>
+              <h2 className="text-xl font-bold text-gray-800">{t.loginModalTitle}</h2>
+            </div>
 
-                 <div className="border border-gray-100 rounded-xl p-4 bg-gray-50">
-                   <div className="text-xs font-bold text-gray-600 mb-2">이메일/비밀번호</div>
-                   <div className="space-y-2">
-                     <input
-                       value={emailAuthEmail}
-                       onChange={(e) => setEmailAuthEmail(e.target.value)}
-                       placeholder="이메일"
-                       autoComplete="email"
-                       className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm outline-none focus:border-indigo-300 bg-white"
-                     />
-                     <input
-                       type="password"
-                       value={emailAuthPassword}
-                       onChange={(e) => setEmailAuthPassword(e.target.value)}
-                       placeholder="비밀번호"
-                       autoComplete="current-password"
-                       className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm outline-none focus:border-indigo-300 bg-white"
-                     />
-
-                     {emailAuthError ? (
-                       <div className="text-xs text-red-600 whitespace-pre-wrap break-words">{emailAuthError}</div>
-                     ) : null}
-
-                     <div className="flex items-center gap-2 pt-1">
-                       <button
-                         disabled={isEmailAuthBusy}
-                         onClick={handleEmailLogin}
-                         className="flex-1 px-3 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40"
-                       >
-                         로그인
-                       </button>
-                       <button
-                         disabled={isEmailAuthBusy}
-                         onClick={handleEmailSignUp}
-                         className="flex-1 px-3 py-2 rounded-xl text-xs font-bold bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-40"
-                       >
-                         가입
-                       </button>
-                     </div>
-                   </div>
-                 </div>
-
-                 {/* Guest Login Button */}
-                 <button 
-                    onClick={() => handleLoginSelection('guest')}
-                    className="w-full flex items-center p-4 rounded-xl border border-gray-200 hover:border-gray-400 hover:bg-gray-50 transition-all group text-left"
-                 >
-                    <div className="bg-gray-200 p-2 rounded-full mr-4 text-gray-500 group-hover:bg-gray-300 group-hover:text-gray-700">
-                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-                    </div>
-                    <div>
-                       <h3 className="font-bold text-gray-700">{t.loginGuest}</h3>
-                       <p className="text-xs text-gray-400 mt-0.5">{t.loginGuestDesc}</p>
-                    </div>
-                 </button>
-              </div>
-
-              <button 
-                onClick={() => setIsLoginModalOpen(false)}
-                className="mt-6 text-sm text-gray-400 hover:text-gray-600 underline"
+            <div className="space-y-3">
+              {/* Google Login Button */}
+              <button
+                onClick={() => handleLoginSelection('google')}
+                className="w-full flex items-center p-4 rounded-xl border border-gray-200 hover:border-blue-200 hover:bg-blue-50 transition-all group text-left relative overflow-hidden"
               >
-                Cancel
+                <div className="bg-white p-2 rounded-full shadow-sm mr-4 z-10">
+                  <GoogleLogo />
+                </div>
+                <div className="z-10">
+                  <h3 className="font-bold text-gray-800 group-hover:text-blue-700">{t.loginGoogle}</h3>
+                  <p className="text-xs text-gray-500 mt-0.5">{t.loginGoogleDesc}</p>
+                </div>
+                <div className="absolute inset-0 border-2 border-transparent group-hover:border-blue-100 rounded-xl pointer-events-none"></div>
               </button>
-           </div>
+
+              <div className="border border-gray-100 rounded-xl p-4 bg-gray-50">
+                <div className="text-xs font-bold text-gray-600 mb-2">이메일/비밀번호</div>
+                <div className="space-y-2">
+                  <input
+                    value={emailAuthEmail}
+                    onChange={(e) => setEmailAuthEmail(e.target.value)}
+                    placeholder="이메일"
+                    autoComplete="email"
+                    className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm outline-none focus:border-indigo-300 bg-white"
+                  />
+                  <input
+                    type="password"
+                    value={emailAuthPassword}
+                    onChange={(e) => setEmailAuthPassword(e.target.value)}
+                    placeholder="비밀번호"
+                    autoComplete="current-password"
+                    className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm outline-none focus:border-indigo-300 bg-white"
+                  />
+
+                  {emailAuthError ? (
+                    <div className="text-xs text-red-600 whitespace-pre-wrap break-words">{emailAuthError}</div>
+                  ) : null}
+
+                  <div className="flex items-center gap-2 pt-1">
+                    <button
+                      disabled={isEmailAuthBusy}
+                      onClick={handleEmailLogin}
+                      className="flex-1 px-3 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40"
+                    >
+                      로그인
+                    </button>
+                    <button
+                      disabled={isEmailAuthBusy}
+                      onClick={handleEmailSignUp}
+                      className="flex-1 px-3 py-2 rounded-xl text-xs font-bold bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-40"
+                    >
+                      가입
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Guest Login Button */}
+              <button
+                onClick={() => handleLoginSelection('guest')}
+                className="w-full flex items-center p-4 rounded-xl border border-gray-200 hover:border-gray-400 hover:bg-gray-50 transition-all group text-left"
+              >
+                <div className="bg-gray-200 p-2 rounded-full mr-4 text-gray-500 group-hover:bg-gray-300 group-hover:text-gray-700">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-700">{t.loginGuest}</h3>
+                  <p className="text-xs text-gray-400 mt-0.5">{t.loginGuestDesc}</p>
+                </div>
+              </button>
+            </div>
+
+            <button
+              onClick={() => setIsLoginModalOpen(false)}
+              className="mt-6 text-sm text-gray-400 hover:text-gray-600 underline"
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       )}
 
@@ -2413,11 +2449,10 @@ export default function App() {
                       <button
                         key={s.folderId}
                         onClick={() => setSelectedDriveSessionId(s.folderId)}
-                        className={`w-full text-left px-4 py-3 rounded-xl border transition-colors ${
-                          selectedDriveSessionId === s.folderId
-                            ? 'bg-indigo-50 border-indigo-200'
-                            : 'bg-white border-gray-100 hover:bg-gray-50'
-                        }`}
+                        className={`w-full text-left px-4 py-3 rounded-xl border transition-colors ${selectedDriveSessionId === s.folderId
+                          ? 'bg-indigo-50 border-indigo-200'
+                          : 'bg-white border-gray-100 hover:bg-gray-50'
+                          }`}
                       >
                         <div className="flex items-center justify-between gap-3">
                           <div className="min-w-0">
@@ -2476,11 +2511,10 @@ export default function App() {
                         <button
                           key={s.id}
                           onClick={() => setSelectedLocalSessionId(s.id)}
-                          className={`w-full text-left px-4 py-3 rounded-xl border transition-colors ${
-                            selectedLocalSessionId === s.id
-                              ? 'bg-indigo-50 border-indigo-200'
-                              : 'bg-white border-gray-100 hover:bg-gray-50'
-                          }`}
+                          className={`w-full text-left px-4 py-3 rounded-xl border transition-colors ${selectedLocalSessionId === s.id
+                            ? 'bg-indigo-50 border-indigo-200'
+                            : 'bg-white border-gray-100 hover:bg-gray-50'
+                            }`}
                         >
                           <div className="flex items-center justify-between gap-3">
                             <div className="min-w-0">
@@ -2527,21 +2561,19 @@ export default function App() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => setSettings(prev => ({ ...prev, driveBackupMode: 'manual' }))}
-                    className={`flex-1 px-3 py-2 rounded-xl text-sm font-bold border transition-colors ${
-                      settings.driveBackupMode === 'manual'
-                        ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
-                        : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
-                    }`}
+                    className={`flex-1 px-3 py-2 rounded-xl text-sm font-bold border transition-colors ${settings.driveBackupMode === 'manual'
+                      ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
+                      : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
+                      }`}
                   >
                     수동
                   </button>
                   <button
                     onClick={() => setSettings(prev => ({ ...prev, driveBackupMode: 'auto' }))}
-                    className={`flex-1 px-3 py-2 rounded-xl text-sm font-bold border transition-colors ${
-                      settings.driveBackupMode === 'auto'
-                        ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
-                        : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
-                    }`}
+                    className={`flex-1 px-3 py-2 rounded-xl text-sm font-bold border transition-colors ${settings.driveBackupMode === 'auto'
+                      ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
+                      : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
+                      }`}
                   >
                     자동
                   </button>
@@ -2552,11 +2584,10 @@ export default function App() {
                 <div className="text-sm font-bold text-gray-800">음성 캐시(IndexedDB)</div>
                 <button
                   onClick={() => setSettings(prev => ({ ...prev, audioCacheEnabled: !prev.audioCacheEnabled }))}
-                  className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-colors ${
-                    settings.audioCacheEnabled
-                      ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
-                      : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
-                  }`}
+                  className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-colors ${settings.audioCacheEnabled
+                    ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
+                    : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
+                    }`}
                 >
                   <span className="text-sm font-bold">사용</span>
                   <span className="text-xs font-bold">{settings.audioCacheEnabled ? 'ON' : 'OFF'}</span>
@@ -2570,55 +2601,55 @@ export default function App() {
       {/* --- CLASSROOM MODAL --- */}
       {isClassroomModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-           <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
-              {/* Modal Header */}
-              <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                 <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                    <ClassroomIcon /> {t.selectCourse}
-                 </h2>
-                 <button 
-                   onClick={() => setIsClassroomModalOpen(false)}
-                   className="text-gray-400 hover:text-gray-600 p-1 bg-white rounded-full shadow-sm"
-                 >
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                 </button>
-              </div>
-              
-              {/* Modal Body */}
-              <div className="flex-1 overflow-y-auto p-4">
-                 {isLoadingCourses ? (
-                    <div className="flex flex-col items-center justify-center py-10 text-gray-400">
-                       <div className="w-8 h-8 border-2 border-indigo-200 border-t-indigo-500 rounded-full animate-spin mb-3"></div>
-                       <p className="text-sm">{t.fetchingCourses}</p>
-                    </div>
-                 ) : courses.length === 0 ? (
-                    <div className="text-center py-10 text-gray-400">
-                       <p>{t.noCourses}</p>
-                    </div>
-                 ) : (
-                    <div className="space-y-2">
-                       {courses.map((course) => (
-                          <button 
-                             key={course.id}
-                             onClick={() => handleSubmitCourseWork(course.id)}
-                             disabled={isExporting}
-                             className="w-full flex items-center justify-between p-3 rounded-xl border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 transition-all group text-left"
-                          >
-                             <div>
-                                <h3 className="font-bold text-gray-800 group-hover:text-indigo-700">{course.name}</h3>
-                                <p className="text-xs text-gray-500">{course.section}</p>
-                             </div>
-                             {isExporting ? (
-                                <div className="w-4 h-4 border-2 border-gray-300 border-t-indigo-500 rounded-full animate-spin"></div>
-                             ) : (
-                                <div className="text-gray-300 group-hover:text-indigo-500"><ArrowRightIcon /></div>
-                             )}
-                          </button>
-                       ))}
-                    </div>
-                 )}
-              </div>
-           </div>
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+              <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                <ClassroomIcon /> {t.selectCourse}
+              </h2>
+              <button
+                onClick={() => setIsClassroomModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 p-1 bg-white rounded-full shadow-sm"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto p-4">
+              {isLoadingCourses ? (
+                <div className="flex flex-col items-center justify-center py-10 text-gray-400">
+                  <div className="w-8 h-8 border-2 border-indigo-200 border-t-indigo-500 rounded-full animate-spin mb-3"></div>
+                  <p className="text-sm">{t.fetchingCourses}</p>
+                </div>
+              ) : courses.length === 0 ? (
+                <div className="text-center py-10 text-gray-400">
+                  <p>{t.noCourses}</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {courses.map((course) => (
+                    <button
+                      key={course.id}
+                      onClick={() => handleSubmitCourseWork(course.id)}
+                      disabled={isExporting}
+                      className="w-full flex items-center justify-between p-3 rounded-xl border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 transition-all group text-left"
+                    >
+                      <div>
+                        <h3 className="font-bold text-gray-800 group-hover:text-indigo-700">{course.name}</h3>
+                        <p className="text-xs text-gray-500">{course.section}</p>
+                      </div>
+                      {isExporting ? (
+                        <div className="w-4 h-4 border-2 border-gray-300 border-t-indigo-500 rounded-full animate-spin"></div>
+                      ) : (
+                        <div className="text-gray-300 group-hover:text-indigo-500"><ArrowRightIcon /></div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
@@ -2631,7 +2662,12 @@ export default function App() {
         historyCount={history.length}
       />
 
+      <NotebookLMGuide
+        isOpen={isNotebookLMGuideOpen}
+        onClose={() => setIsNotebookLMGuideOpen(false)}
+      />
+
     </div>
   );
- }
+}
 

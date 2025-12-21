@@ -42,8 +42,8 @@ export const VOICE_OPTIONS: VoiceOption[] = [
 ];
 
 export const MODEL_LIVE = 'gemini-2.5-flash-native-audio-preview-09-2025';
-export const MODEL_TRANSLATE = 'gemini-2.5-flash'; 
-export const MODEL_VISION = 'gemini-2.5-flash'; 
+export const MODEL_TRANSLATE = 'gemini-2.5-flash';
+export const MODEL_VISION = 'gemini-2.5-flash';
 export const MODEL_TTS = 'gemini-2.5-flash-preview-tts';
 
 export const TRANSLATIONS: Record<string, TranslationMap> = {
@@ -75,6 +75,7 @@ export const TRANSLATIONS: Record<string, TranslationMap> = {
     exportDocs: "Google Docs 저장",
     exportDrive: "Google Drive 백업",
     exportClassroom: "Classroom 제출",
+    exportNotebookLM: "NotebookLM용 소스 저장",
     loginRequired: "Google 로그인이 필요합니다.",
     loginRequiredDrive: "Drive 백업은 로그인이 필요합니다.",
     loginRequiredClassroom: "Classroom 제출은 로그인이 필요합니다.",
@@ -120,6 +121,7 @@ export const TRANSLATIONS: Record<string, TranslationMap> = {
     exportDocs: "Save to Google Docs",
     exportDrive: "Backup to Drive",
     exportClassroom: "Submit to Classroom",
+    exportNotebookLM: "Save for NotebookLM",
     loginRequired: "Google Login Required",
     loginRequiredDrive: "Login required for Drive backup.",
     loginRequiredClassroom: "Login required for Classroom submission.",
@@ -165,6 +167,7 @@ export const TRANSLATIONS: Record<string, TranslationMap> = {
     exportDocs: "Google Docsに保存",
     exportDrive: "Driveにバックアップ",
     exportClassroom: "Classroomに提出",
+    exportNotebookLM: "NotebookLM用ソース保存",
     loginRequired: "Googleログインが必要です",
     loginRequiredDrive: "Drive機能はログインが必要です",
     loginRequiredClassroom: "Classroom機能はログインが必要です",
@@ -210,6 +213,7 @@ export const TRANSLATIONS: Record<string, TranslationMap> = {
     exportDocs: "保存到 Google Docs",
     exportDrive: "备份到 Drive",
     exportClassroom: "提交到 Classroom",
+    exportNotebookLM: "保存到 NotebookLM",
     loginRequired: "需要 Google 登录",
     loginRequiredDrive: "Drive 功能需要登录",
     loginRequiredClassroom: "Classroom 功能需要登录",
@@ -255,6 +259,7 @@ export const TRANSLATIONS: Record<string, TranslationMap> = {
     exportDocs: "Lưu vào Google Docs",
     exportDrive: "Sao lưu vào Drive",
     exportClassroom: "Nộp lên Classroom",
+    exportNotebookLM: "Lưu cho NotebookLM",
     loginRequired: "Cần đăng nhập Google",
     loginRequiredDrive: "Cần đăng nhập để dùng Drive",
     loginRequiredClassroom: "Cần đăng nhập để nộp Classroom",
@@ -300,6 +305,7 @@ export const TRANSLATIONS: Record<string, TranslationMap> = {
     exportDocs: "Guardar en Google Docs",
     exportDrive: "Respaldo en Drive",
     exportClassroom: "Enviar a Classroom",
+    exportNotebookLM: "Guardar para NotebookLM",
     loginRequired: "Requiere Google Login",
     loginRequiredDrive: "Login requerido para Drive",
     loginRequiredClassroom: "Login requerido para Classroom",

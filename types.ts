@@ -75,6 +75,7 @@ export interface TranslationMap {
   exportDocs: string;
   exportDrive: string;
   exportClassroom: string;
+  exportNotebookLM: string;
   loginRequired: string; // Generic
   loginRequiredDrive: string; // Specific for Drive
   loginRequiredClassroom: string; // Specific for Classroom

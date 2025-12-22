@@ -183,6 +183,10 @@ export function useGeminiLive({ langInput, onTranscriptReceived, onAudioReceived
                             return;
                         }
                         console.log("Gemini Live Connected");
+                        // 디버그: 세션 객체 키 출력
+                        const session = await sessionPromise;
+                        console.log('[DEBUG] Session object keys:', Object.keys(session || {}));
+                        console.log('[DEBUG] sendRealtimeInput type:', typeof session?.sendRealtimeInput);
                         setErrorMessage('');
                         geminiReconnectAttemptRef.current = 0;
                         setStatus(ConnectionStatus.CONNECTED);
@@ -230,6 +234,7 @@ export function useGeminiLive({ langInput, onTranscriptReceived, onAudioReceived
                         processor.connect(inputCtx.destination);
                     },
                     onmessage: async (msg: any) => {
+                        console.log('[DEBUG] Gemini onmessage received:', JSON.stringify(msg).slice(0, 500));
                         if (!isCurrentAttempt()) return;
                         if (msg.serverContent?.modelTurn?.parts) {
                             for (const part of msg.serverContent.modelTurn.parts) {
@@ -247,6 +252,7 @@ export function useGeminiLive({ langInput, onTranscriptReceived, onAudioReceived
                         }
                     },
                     ontranscript: (t: any) => {
+                        console.log('[DEBUG] ontranscript received:', t);
                         if (!isCurrentAttempt()) return;
                         onTranscriptReceived(t.text, t.isFinal);
                     },

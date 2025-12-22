@@ -172,64 +172,71 @@ const BottomControls: React.FC<BottomControlsProps> = ({
 
                 {/* Central Main Button - Toggle between Mic and Keyboard */}
                 <div className="relative -mt-10 px-4 flex flex-col items-center">
-                    <button
-                        onClick={handleMainButtonClick}
-                        onMouseDown={handleLongPressStart}
-                        onMouseUp={handleLongPressEnd}
-                        onMouseLeave={handleLongPressEnd}
-                        onTouchStart={handleLongPressStart}
-                        onTouchEnd={handleLongPressEnd}
-                        className={`flex items-center justify-center shadow-2xl border-[6px] border-white transition-all transform hover:scale-110 active:scale-90 cursor-pointer w-18 h-18 md:w-20 md:h-20 ${isTextMode
-                            ? 'rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-emerald-200'
-                            : status === ConnectionStatus.CONNECTED
-                                ? 'rounded-full bg-gradient-to-br from-red-500 to-rose-600 text-white shadow-red-200'
-                                : isMicDisabled
-                                    ? 'rounded-full bg-gray-400 text-white/50 shadow-none cursor-not-allowed opacity-60'
-                                    : 'rounded-full bg-gradient-to-br from-indigo-500 to-indigo-700 text-white shadow-indigo-200'
-                            }`}
-                        disabled={!isTextMode && isMicDisabled}
-                        title={isTextMode
-                            ? (uiLangCode === 'ko' ? '텍스트 전송 (길게 눌러 마이크 모드)' : 'Send text (hold for mic mode)')
-                            : isMicDisabled
-                                ? '발언권이 제한되었습니다.'
-                                : (status === ConnectionStatus.CONNECTED ? '마이크 끄기 (길게 눌러 키보드 모드)' : '마이크 켜기 (길게 눌러 키보드 모드)')}
+                    <div
+                        className="flex flex-col items-center gap-1.5 transition-all duration-300"
+                        style={{
+                            transform: isAnimating ? 'perspective(600px) rotateY(15deg) scale(0.95)' : 'perspective(600px) rotateY(0deg) scale(1)',
+                            opacity: isAnimating ? 0.7 : 1,
+                        }}
                     >
-                        {/* Icon container with 3D flip animation (Y-axis like a door) */}
-                        <div
-                            className="scale-125 transition-all duration-300"
-                            style={{
-                                transform: isAnimating ? 'perspective(200px) rotateY(90deg)' : 'perspective(200px) rotateY(0deg)',
-                                transformStyle: 'preserve-3d',
-                            }}
+                        <button
+                            onClick={handleMainButtonClick}
+                            onMouseDown={handleLongPressStart}
+                            onMouseUp={handleLongPressEnd}
+                            onMouseLeave={handleLongPressEnd}
+                            onTouchStart={handleLongPressStart}
+                            onTouchEnd={handleLongPressEnd}
+                            className={`flex items-center justify-center shadow-2xl border-[6px] border-white transition-all transform hover:scale-110 active:scale-90 cursor-pointer w-18 h-18 md:w-20 md:h-20 ${isTextMode
+                                ? 'rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-emerald-200'
+                                : status === ConnectionStatus.CONNECTED
+                                    ? 'rounded-full bg-gradient-to-br from-red-500 to-rose-600 text-white shadow-red-200'
+                                    : isMicDisabled
+                                        ? 'rounded-full bg-gray-400 text-white/50 shadow-none cursor-not-allowed opacity-60'
+                                        : 'rounded-full bg-gradient-to-br from-indigo-500 to-indigo-700 text-white shadow-indigo-200'
+                                }`}
+                            disabled={!isTextMode && isMicDisabled}
+                            title={isTextMode
+                                ? (uiLangCode === 'ko' ? '텍스트 전송 (길게 눌러 마이크 모드)' : 'Send text (hold for mic mode)')
+                                : isMicDisabled
+                                    ? '발언권이 제한되었습니다.'
+                                    : (status === ConnectionStatus.CONNECTED ? '마이크 끄기 (길게 눌러 키보드 모드)' : '마이크 켜기 (길게 눌러 키보드 모드)')}
                         >
-                            {isTextMode ? (
-
-                                <KeyboardIcon />
-                            ) : status === ConnectionStatus.CONNECTING ? (
-                                <div className="w-8 h-8 border-3 border-white/30 border-t-white rounded-full animate-spin"></div>
-                            ) : isMicDisabled ? (
-                                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                </svg>
-                            ) : status === ConnectionStatus.CONNECTED ? (
-                                <MicOffIcon />
-                            ) : (
-                                <MicIcon />
-                            )}
-                        </div>
-                        {/* Hand Raise Status Badge for Mic */}
-                        {!isHost && micRestricted && handRaiseStatus === 'approved' && !isTextMode && (
-                            <div className="absolute -top-1 -right-1 bg-emerald-500 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px] shadow-lg border-2 border-white animate-bounce">
-                                ✋
+                            {/* Icon container with 3D flip animation (Y-axis like a door) */}
+                            <div
+                                className="scale-125 transition-all duration-300"
+                                style={{
+                                    transform: isAnimating ? 'perspective(200px) rotateY(90deg)' : 'perspective(200px) rotateY(0deg)',
+                                    transformStyle: 'preserve-3d',
+                                }}
+                            >
+                                {isTextMode ? (
+                                    <KeyboardIcon />
+                                ) : status === ConnectionStatus.CONNECTING ? (
+                                    <div className="w-8 h-8 border-3 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                ) : isMicDisabled ? (
+                                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                    </svg>
+                                ) : status === ConnectionStatus.CONNECTED ? (
+                                    <MicOffIcon />
+                                ) : (
+                                    <MicIcon />
+                                )}
                             </div>
-                        )}
-                    </button>
-                    {/* Mode indicator text */}
-                    <span className="text-[8px] text-gray-400 font-bold mt-1.5 whitespace-pre-wrap text-center leading-tight">
-                        {uiLangCode === 'ko'
-                            ? (isTextMode ? '길게 누르면\n마이크' : '길게 누르면\n키보드')
-                            : (isTextMode ? 'Hold for\nMic' : 'Hold for\nKeyboard')}
-                    </span>
+                            {/* Hand Raise Status Badge for Mic */}
+                            {!isHost && micRestricted && handRaiseStatus === 'approved' && !isTextMode && (
+                                <div className="absolute -top-1 -right-1 bg-emerald-500 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px] shadow-lg border-2 border-white animate-bounce">
+                                    ✋
+                                </div>
+                            )}
+                        </button>
+                        {/* Mode indicator text */}
+                        <span className={`text-[8px] text-gray-400 font-bold whitespace-pre-wrap text-center leading-tight transition-all duration-300 ${isAnimating ? 'opacity-0 scale-50' : 'opacity-100 scale-100'}`}>
+                            {uiLangCode === 'ko'
+                                ? (isTextMode ? '길게 누르면\n마이크' : '길게 누르면\n키보드')
+                                : (isTextMode ? 'Hold for\nMic' : 'Hold for\nKeyboard')}
+                        </span>
+                    </div>
 
                 </div>
 

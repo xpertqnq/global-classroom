@@ -69,16 +69,18 @@ const ConversationList: React.FC<ConversationListProps> = ({
                 className="flex-1 overflow-y-auto p-4 z-10 relative scroll-smooth"
             >
                 {history.length === 0 && !currentTurnText && (
-                    <div className="h-full flex flex-col items-center justify-center text-gray-400 text-center px-6 opacity-60">
-                        <MicIcon />
-                        <p className="mt-4 whitespace-pre-wrap text-sm">{t.emptyHint}</p>
+                    <div className="h-full flex flex-col items-center justify-center text-gray-400 text-center px-4 opacity-60 overflow-y-auto py-4">
+                        <div className="shrink-0 scale-90 mb-2">
+                            <MicIcon />
+                        </div>
+                        <p className="mt-2 whitespace-pre-wrap text-xs font-medium leading-relaxed max-w-[260px]">{t.emptyHint}</p>
                         <div className="mt-4 w-full max-w-xl text-left space-y-2 text-[12px] text-gray-500 bg-white/80 border border-gray-200 rounded-2xl p-4 shadow-sm">
                             <div className="font-bold text-gray-700 text-sm">빠른 안내</div>
-                            <ul className="list-disc list-inside space-y-1">
+                            <ul className="list-disc list-inside space-y-0.5 mt-1 leading-snug">
                                 <li>마이크 버튼을 눌러 실시간 번역을 시작하세요.</li>
-                                <li>Google 로그인 시 Drive 백업·Classroom 제출·Docs 저장 기능 사용 가능.</li>
-                                <li>칠판 촬영(비전)으로 사진 속 텍스트를 감지해 번역합니다.</li>
-                                <li>자동 읽기/자동 스크롤 토글로 듣기/보기 방식을 선택하세요.</li>
+                                <li>Google 로그인 시 Drive 백업/Docs 저장 가능.</li>
+                                <li>칠판 촬영(비전)으로 텍스트 감지 번역 가능.</li>
+                                <li>자동 읽기/스크롤 토글로 편의 기능 선택.</li>
                             </ul>
                             <div className="grid grid-cols-2 gap-2 text-[11px]">
                                 <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2">
@@ -93,7 +95,7 @@ const ConversationList: React.FC<ConversationListProps> = ({
                         </div>
                         <button
                             onClick={toggleMic}
-                            className="mt-8 px-10 py-4 rounded-full bg-gradient-to-r from-indigo-500 to-indigo-700 text-white text-base font-black shadow-xl hover:shadow-indigo-200 hover:scale-110 hover:-translate-y-1 transition-all active:scale-90 active:translate-y-0 ring-4 ring-indigo-50 animate-bounce"
+                            className="mt-6 px-10 py-3.5 rounded-full bg-gradient-to-r from-indigo-500 to-indigo-700 text-white text-sm font-black shadow-xl hover:shadow-indigo-300 hover:scale-105 hover:-translate-y-0.5 transition-all active:scale-95 active:translate-y-0 ring-4 ring-indigo-50 animate-pulse active:animate-none"
                         >
                             {status === ConnectionStatus.CONNECTING
                                 ? t.connecting

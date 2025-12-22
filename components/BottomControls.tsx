@@ -26,27 +26,26 @@ const BottomControls: React.FC<BottomControlsProps> = ({
     t,
 }) => {
     return (
-        <div className="bg-white px-6 py-4 rounded-t-[2rem] shadow-[0_-5px_20px_rgba(0,0,0,0.05)] flex items-center justify-between z-30 shrink-0">
-            <div className="flex items-center gap-1">
+        <div className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-gray-100 px-2 pt-2 pb-[env(safe-area-inset-bottom,16px)] flex items-center justify-around z-50 shadow-[0_-10px_30px_rgba(0,0,0,0.05)]">
+            {/* Left Tabs */}
+            <div className="flex flex-1 justify-around items-center">
                 <button
                     onClick={() => setIsAutoPlay(!isAutoPlay)}
-                    className={`flex flex-col items-center gap-1.5 transition-all active:scale-75 w-16 group ${isAutoPlay ? 'text-indigo-600' : 'text-gray-400'
+                    className={`flex flex-col items-center gap-1 transition-all active:scale-90 w-14 ${isAutoPlay ? 'text-indigo-600' : 'text-gray-400'
                         }`}
                 >
-                    <div className={`p-3.5 rounded-full shadow-sm group-hover:shadow-xl group-hover:scale-110 transition-all ${isAutoPlay ? 'bg-indigo-100 group-hover:bg-indigo-600 group-hover:text-white' : 'bg-gray-50 group-hover:bg-white border border-gray-100'
-                        }`}>
+                    <div className={`p-2 rounded-xl transition-all ${isAutoPlay ? 'bg-indigo-50 shadow-sm' : 'bg-transparent'}`}>
                         <SpeakerIcon />
                     </div>
-                    <span className="text-[10px] font-black tracking-tighter group-hover:text-indigo-600 transition-colors">{t.autoPlay}</span>
+                    <span className="text-[9px] font-bold tracking-tighter">{t.autoPlay}</span>
                 </button>
 
                 <button
                     onClick={() => setIsScrollLocked(!isScrollLocked)}
-                    className={`flex flex-col items-center gap-1.5 transition-all active:scale-75 w-16 group ${!isScrollLocked ? 'text-indigo-600' : 'text-gray-400'
+                    className={`flex flex-col items-center gap-1 transition-all active:scale-90 w-14 ${!isScrollLocked ? 'text-indigo-600' : 'text-gray-400'
                         }`}
                 >
-                    <div className={`p-3.5 rounded-full shadow-sm group-hover:shadow-xl group-hover:scale-110 transition-all ${!isScrollLocked ? 'bg-indigo-100 group-hover:bg-indigo-600 group-hover:text-white' : 'bg-gray-50 group-hover:bg-white border border-gray-100'
-                        }`}>
+                    <div className={`p-2 rounded-xl transition-all ${!isScrollLocked ? 'bg-indigo-50 shadow-sm' : 'bg-transparent'}`}>
                         {isScrollLocked ? (
                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 002-2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
@@ -57,45 +56,51 @@ const BottomControls: React.FC<BottomControlsProps> = ({
                             </svg>
                         )}
                     </div>
-                    <span className="text-[10px] font-black tracking-tighter group-hover:text-indigo-600 transition-colors">자동스크롤</span>
+                    <span className="text-[9px] font-bold tracking-tighter">자동스크롤</span>
                 </button>
             </div>
 
-            <button
-                onClick={toggleMic}
-                className={`w-24 h-24 -mt-12 rounded-full flex items-center justify-center shadow-2xl border-4 border-white transition-all transform hover:scale-110 hover:brightness-110 active:scale-75 ${status === ConnectionStatus.CONNECTED
-                    ? 'bg-gradient-to-br from-red-500 to-red-600 text-white shadow-red-200 ring-8 ring-red-50'
-                    : 'bg-gradient-to-br from-indigo-500 to-indigo-700 text-white shadow-indigo-200 ring-8 ring-indigo-50'
-                    }`}
-            >
-                {status === ConnectionStatus.CONNECTING ? (
-                    <div className="w-10 h-10 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
-                ) : status === ConnectionStatus.CONNECTED ? (
-                    <div className="scale-150 animate-pulse"><MicOffIcon /></div>
-                ) : (
-                    <div className="scale-150 group-hover:scale-175 transition-transform"><MicIcon /></div>
-                )}
-            </button>
+            {/* Central Main Button */}
+            <div className="relative -mt-10 px-4">
+                <button
+                    onClick={toggleMic}
+                    className={`w-18 h-18 md:w-20 md:h-20 rounded-full flex items-center justify-center shadow-2xl border-[6px] border-white transition-all transform hover:scale-105 active:scale-90 ${status === ConnectionStatus.CONNECTED
+                        ? 'bg-gradient-to-br from-red-500 to-rose-600 text-white shadow-red-200'
+                        : 'bg-gradient-to-br from-indigo-500 to-indigo-700 text-white shadow-indigo-200'
+                        }`}
+                >
+                    <div className="scale-125">
+                        {status === ConnectionStatus.CONNECTING ? (
+                            <div className="w-8 h-8 border-3 border-white/30 border-t-white rounded-full animate-spin"></div>
+                        ) : status === ConnectionStatus.CONNECTED ? (
+                            <MicOffIcon />
+                        ) : (
+                            <MicIcon />
+                        )}
+                    </div>
+                </button>
+            </div>
 
-            <div className="flex items-center gap-1">
+            {/* Right Tabs */}
+            <div className="flex flex-1 justify-around items-center">
                 <button
                     onClick={playAll}
-                    className="flex flex-col items-center gap-1.5 text-gray-400 transition-all active:scale-75 w-16 group"
+                    className="flex flex-col items-center gap-1 text-gray-400 transition-all active:scale-90 w-14 hover:text-indigo-600"
                 >
-                    <div className="p-3.5 bg-gray-50 rounded-full shadow-sm border border-gray-100 group-hover:bg-indigo-600 group-hover:text-white group-hover:shadow-xl group-hover:scale-110 transition-all">
+                    <div className="p-2 rounded-xl hover:bg-indigo-50 transition-all">
                         <PlayAllIcon />
                     </div>
-                    <span className="text-[10px] font-black tracking-tighter group-hover:text-indigo-600 transition-colors">{t.playAll}</span>
+                    <span className="text-[9px] font-bold tracking-tighter">{t.playAll}</span>
                 </button>
 
                 <button
                     onClick={() => setIsCameraOpen(true)}
-                    className="flex flex-col items-center gap-1.5 text-gray-400 transition-all active:scale-75 w-16 group"
+                    className="flex flex-col items-center gap-1 text-gray-400 transition-all active:scale-90 w-14 hover:text-emerald-600"
                 >
-                    <div className="p-3.5 bg-gray-50 rounded-full shadow-sm border border-gray-100 group-hover:bg-emerald-600 group-hover:text-white group-hover:shadow-xl group-hover:scale-110 transition-all">
+                    <div className="p-2 rounded-xl hover:bg-emerald-50 transition-all">
                         <CameraIcon />
                     </div>
-                    <span className="text-[10px] font-black tracking-tighter group-hover:text-emerald-600 transition-colors">{t.visionButton}</span>
+                    <span className="text-[9px] font-bold tracking-tighter">{t.visionButton}</span>
                 </button>
             </div>
         </div>

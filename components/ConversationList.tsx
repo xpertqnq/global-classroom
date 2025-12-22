@@ -72,7 +72,7 @@ const ConversationList: React.FC<ConversationListProps> = ({
             >
                 {history.length === 0 && !currentTurnText && (
                     <div className="h-full flex flex-col items-center justify-start text-gray-400 text-center px-4 opacity-70 overflow-y-auto py-0">
-                        <div className="mt-0 mb-3 flex flex-col items-center gap-1.5">
+                        <div className="mt-12 mb-3 flex flex-col items-center gap-1.5">
                             <span className="bg-indigo-600 text-white px-4 py-1.5 rounded-full text-[11px] font-black shadow-lg animate-bounce duration-1000">터치하여 시작하기</span>
                             <button
                                 onClick={toggleMic}

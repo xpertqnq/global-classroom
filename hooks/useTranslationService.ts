@@ -1,5 +1,6 @@
 import React, { useCallback, useRef } from 'react';
 import { Language, ConversationItem, AppSettings } from '../types';
+import { SUPPORTED_LANGUAGES } from '../constants';
 
 interface UseTranslationServiceProps {
     settings: AppSettings;
@@ -36,10 +37,42 @@ export function useTranslationService({
         if (pendingIdsRef.current.has(id)) return;
         pendingIdsRef.current.add(id);
         try {
+            let actualFrom = fromLang.name;
+            let actualTo = toLang.name;
+            let detectedCode = fromLang.code;
+
+            // Handle Auto Detection
+            if (fromLang.code === 'auto') {
+                try {
+                    const detectRes = await postApi<{ code: string }>('detect-language', { text });
+                    detectedCode = detectRes.code;
+                    const detectedLang = SUPPORTED_LANGUAGES.find(l => l.code === detectedCode);
+                    if (detectedLang) {
+                        actualFrom = detectedLang.name;
+
+                        // If detected language is same as toLang, we need to swap target.
+                        // For example: Mode is Auto -> Vietnamese.
+                        // User speaks Korean -> actualFrom=Korean, actualTo=Vietnamese.
+                        // User speaks Vietnamese -> actualFrom=Vietnamese, actualTo=Korean (fallback/swap).
+                        if (detectedCode === toLang.code) {
+                            // Try to find a sensible 'other' language. 
+                            // Default to Korean if toLang is not Korean, else English.
+                            const otherCode = toLang.code === 'ko' ? 'en' : 'ko';
+                            const otherLang = SUPPORTED_LANGUAGES.find(l => l.code === otherCode);
+                            if (otherLang) {
+                                actualTo = otherLang.name;
+                            }
+                        }
+                    }
+                } catch (de) {
+                    console.error("Auto detection failed, falling back to English/target", de);
+                }
+            }
+
             const data = await postApi<{ translated: string }>('translate', {
                 text,
-                from: fromLang.name,
-                to: toLang.name,
+                from: actualFrom,
+                to: actualTo,
                 model: MODEL_TRANSLATE,
             });
             const translated = data.translated?.trim() || "";

@@ -57,7 +57,7 @@ const LanguageSelector: React.FC<LanguageSelectorProps> = ({
                             }}
                             className="opacity-0 absolute inset-0 w-full h-full z-10 cursor-pointer"
                         >
-                            {SUPPORTED_LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.flag} {l.name}</option>)}
+                            {SUPPORTED_LANGUAGES.filter(l => l.code !== 'auto').map(l => <option key={l.code} value={l.code}>{l.flag} {l.name}</option>)}
                         </select>
                         <div className="text-sm font-bold text-gray-900 truncate max-w-[120px] sm:max-w-xs text-center group-hover:scale-105 transition-transform">
                             {langOutput.flag} {langOutput.name}

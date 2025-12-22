@@ -81,8 +81,8 @@ import {
 
 export default function App() {
   // --- UI Translation State ---
-  const [langInput, setLangInput] = useState<Language>(SUPPORTED_LANGUAGES[0]); // Default: Korean
-  const [langOutput, setLangOutput] = useState<Language>(SUPPORTED_LANGUAGES[4]); // Default: Vietnamese
+  const [langInput, setLangInput] = useState<Language>(SUPPORTED_LANGUAGES[0]); // Default: Auto
+  const [langOutput, setLangOutput] = useState<Language>(SUPPORTED_LANGUAGES.find(l => l.code === 'ko') || SUPPORTED_LANGUAGES[1]); // Default: Korean
   const [isAutoPlay, setIsAutoPlay] = useState(false);
   const [isScrollLocked, setIsScrollLocked] = useState(true);
   const [selectedVoice, setSelectedVoice] = useState<VoiceOption>(VOICE_OPTIONS[0]);

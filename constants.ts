@@ -19,6 +19,7 @@ if (!GOOGLE_CLIENT_ID) {
 }
 
 export const SUPPORTED_LANGUAGES: Language[] = [
+  { code: 'auto', name: '언어 자동 감지 (Auto)', flag: '✨' },
   { code: 'ko', name: '한국어 (Korean)', flag: '🇰🇷' },
   { code: 'en', name: 'English', flag: '🇺🇸' },
   { code: 'ja', name: '日本語 (Japanese)', flag: '🇯🇵' },

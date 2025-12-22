@@ -79,6 +79,20 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                         </select>
                     </div>
 
+                    {/* New Conversation Button (Top Right) */}
+                    <button
+                        onClick={onNewConversation}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 text-white rounded-full shadow-md hover:bg-black transition-all active:scale-95 shrink-0 cursor-pointer h-9 ml-1"
+                        title={uiLangCode === 'ko' ? '새 대화 시작' : 'New Conversation'}
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                        <span className="text-[11px] font-black uppercase tracking-tight hidden sm:inline">
+                            {uiLangCode === 'ko' ? '새 대화' : 'New'}
+                        </span>
+                    </button>
+
                     {user && !user.isAnonymous && user.providerId !== 'anonymous' ? (
                         <div className="relative">
                             <button
@@ -205,16 +219,6 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                 </div>
 
                 <div className="flex items-center gap-1.5">
-                    {/* New Conversation Button */}
-                    <button
-                        onClick={onNewConversation}
-                        className="p-1.5 bg-emerald-50 rounded-full border border-emerald-100 text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all active:scale-90 shrink-0 shadow-sm cursor-pointer hover:shadow-md"
-                        title={uiLangCode === 'ko' ? '새 대화 시작' : 'New Conversation'}
-                    >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                        </svg>
-                    </button>
                     <button
                         onClick={handleSummarize}
                         className="p-1.5 bg-indigo-50 rounded-full border border-indigo-100 text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all active:scale-90 shrink-0 shadow-sm cursor-pointer hover:shadow-md"

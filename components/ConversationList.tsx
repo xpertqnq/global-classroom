@@ -280,12 +280,15 @@ const ConversationList: React.FC<ConversationListProps> = ({
                                             </div>
                                         )}
 
-                                        <div className="bg-white border border-gray-200 p-4 rounded-xl shadow-sm text-gray-800 leading-relaxed text-sm md:text-base">
-                                            {item.original}
-                                        </div>
+
+                                        {!isOutputOnly && (
+                                            <div className="bg-white border border-gray-200 p-4 rounded-xl shadow-sm text-gray-800 leading-relaxed text-sm md:text-base">
+                                                {item.original}
+                                            </div>
+                                        )}
 
                                         <div
-                                            className={`mt-2 p-4 rounded-xl border transition-all text-sm md:text-base relative ${item.isTranslating
+                                            className={`${!isOutputOnly ? 'mt-2' : ''} p-4 rounded-xl border transition-all text-sm md:text-base relative ${item.isTranslating
                                                 ? 'bg-gray-50 border-gray-100'
                                                 : 'bg-indigo-50/50 border-indigo-100 shadow-sm'
                                                 } ${!item.isTranslating && item.translated ? 'cursor-pointer hover:bg-indigo-100 active:scale-[0.99]' : ''

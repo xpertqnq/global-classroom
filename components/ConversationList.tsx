@@ -69,17 +69,19 @@ const ConversationList: React.FC<ConversationListProps> = ({
                 className="flex-1 overflow-y-auto p-4 z-10 relative scroll-smooth"
             >
                 {history.length === 0 && !currentTurnText && (
-                    <div className="h-full flex flex-col items-center justify-center text-gray-400 text-center px-4 opacity-70 overflow-y-auto py-8">
-                        <div className="mb-6 flex flex-col items-center gap-4">
-                            <span className="bg-indigo-600 text-white px-6 py-2 rounded-full text-sm font-black shadow-lg animate-bounce duration-1000">터치하여 시작하기</span>
+                    <div className="h-full flex flex-col items-center justify-start text-gray-400 text-center px-4 opacity-70 overflow-y-auto py-2">
+                        <div className="mt-2 mb-4 flex flex-col items-center gap-2">
+                            <span className="bg-indigo-600 text-white px-4 py-1.5 rounded-full text-[11px] font-black shadow-lg animate-bounce duration-1000">터치하여 시작하기</span>
                             <button
                                 onClick={toggleMic}
-                                className={`w-24 h-24 rounded-full flex items-center justify-center shadow-2xl transition-all transform hover:scale-110 active:scale-95 ring-8 ring-indigo-50/50 ${status === ConnectionStatus.CONNECTED ? 'bg-red-500' : 'bg-gradient-to-br from-indigo-500 to-indigo-700'} text-white`}
+                                className={`w-16 h-16 rounded-full flex items-center justify-center shadow-2xl transition-all transform hover:scale-110 active:scale-95 ring-4 ring-indigo-50/50 ${status === ConnectionStatus.CONNECTED ? 'bg-red-500' : 'bg-gradient-to-br from-indigo-500 to-indigo-700'} text-white`}
                             >
-                                <MicIcon />
+                                <div className="scale-75">
+                                    <MicIcon />
+                                </div>
                             </button>
                         </div>
-                        <p className="mt-2 whitespace-pre-wrap text-xs font-semibold leading-relaxed max-w-[280px] text-gray-400">{t.emptyHint}</p>
+                        <p className="mb-2 whitespace-pre-wrap text-[10px] font-semibold leading-relaxed max-w-[280px] text-gray-400">{t.emptyHint}</p>
                         <div className="mt-4 w-full max-w-xl text-left space-y-2 text-[12px] text-gray-500 bg-white/80 border border-gray-200 rounded-2xl p-4 shadow-sm">
                             <div className="font-bold text-gray-700 text-sm">빠른 안내</div>
                             <ul className="list-disc list-inside space-y-0.5 mt-1 leading-snug">

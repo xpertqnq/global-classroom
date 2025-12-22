@@ -148,49 +148,46 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                 </div>
             </div>
 
-            <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center bg-gray-100 rounded-full px-3 py-1.5 border border-gray-200 hover:bg-white hover:border-indigo-200 hover:shadow-sm transition-all group">
-                    <span className="text-[10px] text-gray-500 font-bold mr-2 uppercase tracking-wide whitespace-nowrap group-hover:text-indigo-500 transition-colors">목소리</span>
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                <div className="flex items-center bg-gray-50 rounded-full px-2 py-1 border border-gray-100 hover:border-indigo-200 transition-all group shrink-0">
+                    <span className="text-[9px] text-gray-400 font-bold mr-1 uppercase tracking-tighter">목소리</span>
                     <select
                         value={selectedVoice.name}
                         onChange={(e) => {
                             const v = VOICE_OPTIONS.find(v => v.name === e.target.value);
                             if (v) setSelectedVoice(v);
                         }}
-                        className="bg-transparent text-xs font-bold text-indigo-600 outline-none cursor-pointer w-20"
+                        className="bg-transparent text-[11px] font-black text-indigo-600 outline-none cursor-pointer w-[60px]"
                     >
                         {VOICE_OPTIONS.map(v => (
-                            <option key={v.name} value={v.name}>{v.label} ({v.gender.slice(0, 1)})</option>
+                            <option key={v.name} value={v.name}>{v.label}</option>
                         ))}
                     </select>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                     <button
                         onClick={() => setIsExportMenuOpen(true)}
-                        className="p-2 bg-gray-100 rounded-full border border-gray-200 text-gray-400 hover:bg-indigo-600 hover:text-white hover:border-indigo-700 hover:shadow-lg transition-all active:scale-90"
+                        className="p-1.5 bg-gray-50 rounded-full border border-gray-100 text-gray-400 hover:bg-indigo-600 hover:text-white transition-all active:scale-90 shrink-0"
                         title={t.exportMenu}
                     >
                         <ExportIcon />
                     </button>
                     <button
                         onClick={() => setIsOutputOnly(!isOutputOnly)}
-                        className={`px-4 py-2 rounded-full text-xs font-black border transition-all active:scale-90 shadow-sm whitespace-nowrap uppercase tracking-tighter ${isOutputOnly
-                            ? 'bg-gradient-to-r from-indigo-500 to-indigo-700 border-indigo-700 text-white hover:shadow-indigo-200 hover:scale-105'
-                            : 'bg-white border-gray-100 text-gray-400 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-600 hover:shadow-lg'
+                        className={`px-3 py-1 rounded-full text-[10px] font-black border transition-all active:scale-90 shadow-sm uppercase tracking-tighter shrink-0 ${isOutputOnly
+                            ? 'bg-gradient-to-r from-indigo-500 to-indigo-700 border-indigo-700 text-white'
+                            : 'bg-white border-gray-100 text-gray-400'
                             }`}
                     >
-                        출력만
+                        {uiLangCode === 'ko' ? '출력' : 'Out'}
                     </button>
 
-                    <div className="flex items-center gap-1 bg-white rounded-full px-2 py-1.5 border border-gray-200 cursor-pointer hover:bg-indigo-50 hover:border-indigo-200 hover:shadow-sm transition-all group min-w-[70px]">
-                        <div className="group-hover:text-indigo-500 transition-colors">
-                            <GlobeIcon />
-                        </div>
+                    <div className="flex items-center px-1.5 py-1 bg-white rounded-full border border-gray-100 hover:border-indigo-200 transition-all shrink-0">
                         <select
                             value={uiLangCode}
                             onChange={(e) => setUiLangCode(e.target.value)}
-                            className="bg-transparent text-xs font-bold text-gray-600 outline-none cursor-pointer w-full"
+                            className="bg-transparent text-[11px] font-black text-gray-600 outline-none cursor-pointer uppercase"
                         >
                             <option value="ko">Ko</option>
                             <option value="vi">Vi</option>

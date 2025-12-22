@@ -249,12 +249,14 @@ export function useGeminiLive({ langInput, onTranscriptReceived, onAudioReceived
                         }
 
                         if (msg.serverContent?.modelTurn?.parts) {
-                            for (const part of msg.serverContent.modelTurn.parts) {
-                                if (part.inlineData) {
-                                    onAudioReceived(part.inlineData.data);
-                                    await playPCM(part.inlineData.data);
-                                }
-                            }
+                            // Gemini Live의 음성 응답은 재생하지 않음
+                            // (이 앱은 전사만 필요하고, 번역 TTS는 별도로 처리)
+                            // for (const part of msg.serverContent.modelTurn.parts) {
+                            //     if (part.inlineData) {
+                            //         onAudioReceived(part.inlineData.data);
+                            //         await playPCM(part.inlineData.data);
+                            //     }
+                            // }
                         }
                         if (msg.serverContent?.interruption) {
                             // Handle interruption if needed

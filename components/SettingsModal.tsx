@@ -77,6 +77,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                             <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-[10px] text-indigo-600 font-bold hover:underline">키 발급받기</a>
                         </div>
                         <input
+                            id="user-api-key"
+                            name="userApiKey"
                             type="password"
                             placeholder="AI Studio에서 발급받은 키 입력"
                             value={settings.userApiKey || ''}

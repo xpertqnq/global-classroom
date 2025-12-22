@@ -2,6 +2,14 @@ import { GoogleGenAI, Type } from '@google/genai';
 
 const SUPPORTED_CODES = ['ko', 'en', 'ja', 'zh', 'vi', 'es', 'fr', 'de', 'ru', 'th', 'id', 'ar', 'hi', 'tl', 'mn', 'uz'] as const;
 type SupportedCode = (typeof SUPPORTED_CODES)[number];
+
+// 모델 우선순위 (무료 제한량 많은 순서)
+const FALLBACK_MODELS = [
+  'gemini-2.5-flash-lite',  // 1순위: 1000-1500 RPD
+  'gemini-1.5-flash',       // 2순위: 1000 RPD
+  'gemini-2.5-flash',       // 3순위: 20-25 RPD
+];
+
 export const handler = async (event: any) => {
   if (event.httpMethod !== 'POST') {
     return {
@@ -37,49 +45,63 @@ export const handler = async (event: any) => {
     };
   }
 
-  try {
-    const ai = new GoogleGenAI({ apiKey });
+  const ai = new GoogleGenAI({ apiKey });
+  let lastError: any = null;
 
-    const prompt = `Detect the language of the following text.
+  const prompt = `Detect the language of the following text.
 Return JSON only.
 Rules:
 - code must be one of: ${SUPPORTED_CODES.join(', ')}
 - confidence must be a number between 0 and 1.
 Text: ${JSON.stringify(text)}`;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: { parts: [{ text: prompt }] },
-      config: {
-        responseMimeType: 'application/json',
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            code: { type: Type.STRING },
-            confidence: { type: Type.NUMBER },
+  // 폴백 모델 순회
+  for (const model of FALLBACK_MODELS) {
+    try {
+      const response = await ai.models.generateContent({
+        model,
+        contents: { parts: [{ text: prompt }] },
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              code: { type: Type.STRING },
+              confidence: { type: Type.NUMBER },
+            },
+            required: ['code', 'confidence'],
           },
-          required: ['code', 'confidence'],
         },
-      },
-    });
+      });
 
-    const json = JSON.parse(response.text || '{}') as { code?: SupportedCode; confidence?: number };
-    const code = SUPPORTED_CODES.includes((json.code as any) ?? '') ? (json.code as SupportedCode) : 'en';
-    const confidence = typeof json.confidence === 'number' ? json.confidence : 0;
+      const json = JSON.parse(response.text || '{}') as { code?: SupportedCode; confidence?: number };
+      const code = SUPPORTED_CODES.includes((json.code as any) ?? '') ? (json.code as SupportedCode) : 'en';
+      const confidence = typeof json.confidence === 'number' ? json.confidence : 0;
 
-    return {
-      statusCode: 200,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code, confidence }),
-    };
-  } catch (error: any) {
-    return {
-      statusCode: 500,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        error: '언어 감지에 실패했습니다.',
-        detail: error?.message || String(error),
-      }),
-    };
+      return {
+        statusCode: 200,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, confidence, model }),
+      };
+    } catch (error: any) {
+      lastError = error;
+      // 429 (Rate Limit) 또는 503인 경우 다음 모델 시도
+      const status = error?.status || error?.response?.status;
+      if (status === 429 || status === 503 || error?.message?.includes('429') || error?.message?.includes('RESOURCE_EXHAUSTED')) {
+        console.log(`Model ${model} rate limited, trying next...`);
+        continue;
+      }
+      // 다른 에러는 즉시 반환
+      break;
+    }
   }
+
+  return {
+    statusCode: 500,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      error: '언어 감지에 실패했습니다.',
+      detail: lastError?.message || String(lastError),
+    }),
+  };
 };

@@ -107,6 +107,8 @@ const BottomControls: React.FC<BottomControlsProps> = ({
                 <div className="bg-white/95 backdrop-blur-xl border-t border-gray-200 px-4 py-3 shadow-lg">
                     <div className="flex items-center gap-2 max-w-2xl mx-auto">
                         <input
+                            id="translation-input"
+                            name="translationInput"
                             ref={inputRef}
                             type="text"
                             value={inputText}

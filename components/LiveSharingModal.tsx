@@ -124,6 +124,8 @@ const LiveSharingModal = ({
                                 <p className="text-sm font-bold text-emerald-900 mb-2">학생용 (참여하기)</p>
                                 <div className="flex gap-2">
                                     <input
+                                        id="room-id-input"
+                                        name="roomId"
                                         type="tel"
                                         placeholder="방 번호 6자리"
                                         value={joinId}

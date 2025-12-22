@@ -25,6 +25,7 @@ interface AppHeaderProps {
     setIsLiveModalOpen: (v: boolean) => void;
     roomStatus: 'idle' | 'hosting' | 'joined';
     t: TranslationMap;
+    onNewConversation?: () => void;
 }
 
 const AppHeader: React.FC<AppHeaderProps> = ({
@@ -49,17 +50,18 @@ const AppHeader: React.FC<AppHeaderProps> = ({
     setIsLiveModalOpen,
     roomStatus,
     t,
+    onNewConversation,
 }) => {
     return (
         <header className="bg-white/80 backdrop-blur-md px-3 py-1.5 shadow-sm z-40 border-b border-gray-100 shrink-0">
             <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-xl flex items-center justify-center shadow-indigo-200 shadow-lg transform -rotate-3 hover:rotate-0 hover:shadow-lg hover:scale-105 transition-all cursor-pointer" title="Global Class Home">
+                    <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-xl flex items-center justify-center shadow-indigo-200 shadow-lg transform -rotate-3 hover:rotate-0 hover:shadow-lg hover:scale-110 transition-all cursor-pointer hover:brightness-105" title="Global Class Home">
                         <GoogleLogo />
                     </div>
-                    <div className="min-w-0 cursor-pointer hover:opacity-80 transition-opacity" title="실시간 AI 통역 서비스">
-                        <h1 className="text-lg font-black text-gray-900 tracking-tight leading-none uppercase italic">{t.appTitle}</h1>
-                        <p className="text-[10px] text-gray-400 font-bold tracking-widest mt-0.5">{t.subtitle}</p>
+                    <div className="min-w-0 cursor-pointer group transition-all" title="실시간 AI 통역 서비스">
+                        <h1 className="text-lg font-black text-gray-900 tracking-tight leading-none uppercase italic group-hover:text-indigo-600 transition-colors">{t.appTitle}</h1>
+                        <p className="text-[10px] text-gray-400 font-bold tracking-widest mt-0.5 group-hover:text-indigo-400 transition-colors">{t.subtitle}</p>
                     </div>
                 </div>
 
@@ -98,6 +100,20 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                                         <p className="text-xs font-bold text-gray-900 truncate">{user.displayName || 'Guest'}</p>
                                         <p className="text-[10px] text-gray-400 truncate mt-0.5">{user.email}</p>
                                     </div>
+
+                                    {/* New Conversation Button */}
+                                    <button
+                                        onClick={() => {
+                                            setIsProfileMenuOpen(false);
+                                            onNewConversation?.();
+                                        }}
+                                        className="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-3 text-sm text-gray-700 font-medium border-b border-gray-50"
+                                    >
+                                        <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                        </svg>
+                                        {uiLangCode === 'ko' ? '새 대화' : 'New Conversation'}
+                                    </button>
 
                                     <button
                                         onClick={() => {
@@ -159,7 +175,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                     ) : (
                         <button
                             onClick={() => setIsLoginModalOpen(true)}
-                            className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-800 border border-indigo-700 rounded-full shadow-lg hover:shadow-indigo-200 hover:scale-105 hover:-translate-y-0.5 transition-all active:scale-90 text-xs font-black text-white whitespace-nowrap uppercase tracking-wider"
+                            className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-800 border border-indigo-700 rounded-full shadow-lg hover:shadow-indigo-200 hover:scale-105 hover:-translate-y-0.5 transition-all active:scale-90 text-xs font-black text-white whitespace-nowrap uppercase tracking-wider cursor-pointer"
                             title="로그인 또는 회원가입"
                         >
                             {uiLangCode === 'ko' ? '로그인' : 'Login'}
@@ -170,7 +186,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
 
             <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
                 <div
-                    className="flex items-center bg-gray-50 rounded-full px-2 py-1 border border-gray-100 hover:border-indigo-200 hover:bg-indigo-50 transition-all group shrink-0 cursor-pointer"
+                    className="flex items-center bg-gray-50 rounded-full px-2 py-1 border border-gray-100 hover:border-indigo-200 hover:bg-indigo-50 transition-all group shrink-0 cursor-pointer hover:shadow-sm"
                     title={uiLangCode === 'ko' ? '음성 목소리 선택' : 'Select TTS voice'}
                 >
                     <span className="text-[9px] text-gray-400 font-bold mr-1 uppercase tracking-tighter">{uiLangCode === 'ko' ? '목소리' : 'Voice'}</span>
@@ -189,24 +205,35 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                 </div>
 
                 <div className="flex items-center gap-1.5">
+                    {/* New Conversation Button */}
+                    <button
+                        onClick={onNewConversation}
+                        className="p-1.5 bg-emerald-50 rounded-full border border-emerald-100 text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all active:scale-90 shrink-0 shadow-sm cursor-pointer hover:shadow-md"
+                        title={uiLangCode === 'ko' ? '새 대화 시작' : 'New Conversation'}
+                    >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                    </button>
                     <button
                         onClick={handleSummarize}
-                        className="p-1.5 bg-indigo-50 rounded-full border border-indigo-100 text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all active:scale-90 shrink-0 shadow-sm cursor-pointer"
+                        className="p-1.5 bg-indigo-50 rounded-full border border-indigo-100 text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all active:scale-90 shrink-0 shadow-sm cursor-pointer hover:shadow-md"
                         title={uiLangCode === 'ko' ? 'AI 요약 및 키워드 추출' : 'AI Summary & Keywords'}
                     >
                         <SparklesIcon />
                     </button>
+
                     <button
                         onClick={() => setIsExportMenuOpen(true)}
-                        className="p-1.5 bg-gray-50 rounded-full border border-gray-100 text-gray-400 hover:bg-indigo-600 hover:text-white transition-all active:scale-90 shrink-0 cursor-pointer"
+                        className="p-1.5 bg-gray-50 rounded-full border border-gray-100 text-gray-400 hover:bg-indigo-600 hover:text-white transition-all active:scale-90 shrink-0 cursor-pointer hover:shadow-md"
                         title={uiLangCode === 'ko' ? '내보내기 (Docs, Drive, Classroom)' : 'Export Options'}
                     >
                         <ExportIcon />
                     </button>
                     <button
                         onClick={() => setIsOutputOnly(!isOutputOnly)}
-                        className={`p-1.5 rounded-full border transition-all active:scale-90 shadow-sm shrink-0 flex items-center justify-center cursor-pointer ${isOutputOnly
-                            ? 'bg-indigo-600 border-indigo-700 text-white'
+                        className={`p-1.5 rounded-full border transition-all active:scale-90 shadow-sm shrink-0 flex items-center justify-center cursor-pointer hover:shadow-md ${isOutputOnly
+                            ? 'bg-indigo-600 border-indigo-700 text-white hover:bg-indigo-700'
                             : 'bg-white border-gray-100 text-gray-400 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-100'
                             }`}
                         title={uiLangCode === 'ko' ? '출력 모드 (번역만 듣기)' : 'Output Only Mode'}
@@ -216,9 +243,9 @@ const AppHeader: React.FC<AppHeaderProps> = ({
 
                     <button
                         onClick={() => setIsLiveModalOpen(true)}
-                        className={`p-1.5 rounded-full border transition-all active:scale-90 shrink-0 shadow-sm flex items-center justify-center h-8 w-8 cursor-pointer ${roomStatus === 'idle'
+                        className={`p-1.5 rounded-full border transition-all active:scale-90 shrink-0 shadow-sm flex items-center justify-center h-8 w-8 cursor-pointer hover:shadow-md ${roomStatus === 'idle'
                             ? 'bg-white border-gray-100 text-gray-400 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-100'
-                            : 'bg-emerald-600 border-emerald-700 text-white animate-pulse'
+                            : 'bg-emerald-600 border-emerald-700 text-white animate-pulse hover:animate-none'
                             }`}
                         title={uiLangCode === 'ko' ? '실시간 강의 공유 (방 만들기/입장)' : 'Live Sharing Room'}
                     >

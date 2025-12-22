@@ -1,4 +1,4 @@
-const CACHE_NAME = 'global-classroom-v2'; // 캐시 버전 업데이트로 기존 오래된 리소스 무효화
+const CACHE_NAME = 'global-classroom-v3'; // 캐시 버전 업데이트로 기존 오래된 리소스 무효화
 const ASSETS = ['/', '/index.html', '/manifest.json'];
 
 self.addEventListener('install', (event) => {

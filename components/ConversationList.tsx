@@ -72,7 +72,7 @@ const ConversationList: React.FC<ConversationListProps> = ({
             {/* Scrollable Content */}
             <div
                 ref={historyRef}
-                className="flex-1 overflow-y-auto p-4 pb-44 md:pb-28 z-10 relative scroll-smooth"
+                className="flex-1 overflow-y-auto p-4 pb-32 md:pb-24 z-10 relative scroll-smooth"
             >
                 {history.length === 0 && !currentTurnText && (
                     <div className="h-full flex flex-col items-center justify-start text-gray-400 text-center px-4 opacity-70 overflow-y-auto py-0">
@@ -82,14 +82,17 @@ const ConversationList: React.FC<ConversationListProps> = ({
                             </span>
                             <button
                                 onClick={toggleMic}
-                                className={`w-16 h-16 rounded-full flex items-center justify-center shadow-2xl transition-all transform hover:scale-115 active:scale-95 ring-4 ring-indigo-50/50 cursor-pointer ${status === ConnectionStatus.CONNECTED ? 'bg-red-500' : 'bg-gradient-to-br from-indigo-500 to-indigo-700'} text-white`}
+                                className={`w-18 h-18 md:w-20 md:h-20 rounded-full flex items-center justify-center shadow-2xl border-[6px] border-white transition-all transform hover:scale-110 active:scale-90 cursor-pointer ${status === ConnectionStatus.CONNECTED
+                                    ? 'bg-gradient-to-br from-red-500 to-rose-600 text-white shadow-red-200'
+                                    : 'bg-gradient-to-br from-indigo-500 to-indigo-700 text-white shadow-indigo-200'}`}
                                 title={status === ConnectionStatus.CONNECTED ? (uiLangCode === 'ko' ? '마이크 끄기' : 'Turn off mic') : (uiLangCode === 'ko' ? '마이크 켜기' : 'Turn on mic')}
                             >
-                                <div className="scale-75">
+                                <div className="scale-125">
                                     <MicIcon />
                                 </div>
                             </button>
                         </div>
+
 
                         {!(isMicOn || status === ConnectionStatus.CONNECTED) ? (
                             <>
@@ -222,50 +225,61 @@ const ConversationList: React.FC<ConversationListProps> = ({
                                     </div>
                                 ) : (
                                     <>
+                                        {/* Always visible 3-dot menu for mobile + hover buttons for desktop */}
                                         {!item.isTranslating && (
-                                            <div className="absolute top-0 right-0 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-20">
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleMergeWithAbove(item.id);
-                                                    }}
-                                                    className="p-1.5 bg-white border border-gray-100 rounded-lg shadow-sm hover:bg-indigo-600 hover:text-white transition-all text-gray-400"
-                                                    title={uiLangCode === 'ko' ? '위 항목과 병합' : 'Merge with above'}
-                                                >
-                                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
-                                                </button>
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleMergeWithBelow(item.id);
-                                                    }}
-                                                    className="p-1.5 bg-white border border-gray-100 rounded-lg shadow-sm hover:bg-indigo-600 hover:text-white transition-all text-gray-400"
-                                                    title={uiLangCode === 'ko' ? '아래 항목과 병합' : 'Merge with below'}
-                                                >
-                                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                                                </button>
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        startEditing(item);
-                                                    }}
-                                                    className="p-1.5 bg-white border border-gray-100 rounded-lg shadow-sm hover:bg-indigo-600 hover:text-white transition-all text-gray-400"
-                                                    title={uiLangCode === 'ko' ? '수정' : 'Edit'}
-                                                >
-                                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-                                                </button>
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        copyToClipboard(`${item.original}\n${item.translated}`);
-                                                    }}
-                                                    className="p-1.5 bg-white border border-gray-100 rounded-lg shadow-sm hover:bg-indigo-600 hover:text-white transition-all text-gray-400"
-                                                    title={uiLangCode === 'ko' ? '복사' : 'Copy'}
-                                                >
-                                                    <CopyIcon />
-                                                </button>
+                                            <div className="absolute top-2 right-2 z-20 flex items-center gap-1">
+                                                {/* 3-dot menu button (always visible) */}
+                                                <div className="relative">
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            startEditing(item);
+                                                        }}
+                                                        className="p-1.5 bg-white/80 backdrop-blur-sm border border-gray-200 rounded-lg shadow-sm text-gray-500 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 transition-all active:scale-95 md:opacity-0 md:group-hover:opacity-100"
+                                                        title={uiLangCode === 'ko' ? '수정' : 'Edit'}
+                                                    >
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                                        </svg>
+                                                    </button>
+                                                </div>
+
+                                                {/* Desktop-only hover buttons */}
+                                                <div className="hidden md:flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleMergeWithAbove(item.id);
+                                                        }}
+                                                        className="p-1.5 bg-white border border-gray-100 rounded-lg shadow-sm hover:bg-indigo-600 hover:text-white transition-all text-gray-400"
+                                                        title={uiLangCode === 'ko' ? '위 항목과 병합' : 'Merge with above'}
+                                                    >
+                                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleMergeWithBelow(item.id);
+                                                        }}
+                                                        className="p-1.5 bg-white border border-gray-100 rounded-lg shadow-sm hover:bg-indigo-600 hover:text-white transition-all text-gray-400"
+                                                        title={uiLangCode === 'ko' ? '아래 항목과 병합' : 'Merge with below'}
+                                                    >
+                                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            copyToClipboard(`${item.original}\n${item.translated}`);
+                                                        }}
+                                                        className="p-1.5 bg-white border border-gray-100 rounded-lg shadow-sm hover:bg-indigo-600 hover:text-white transition-all text-gray-400"
+                                                        title={uiLangCode === 'ko' ? '복사' : 'Copy'}
+                                                    >
+                                                        <CopyIcon />
+                                                    </button>
+                                                </div>
                                             </div>
                                         )}
+
                                         <div className="bg-white border border-gray-200 p-4 rounded-xl shadow-sm text-gray-800 leading-relaxed text-sm md:text-base">
                                             {item.original}
                                         </div>

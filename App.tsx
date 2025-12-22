@@ -138,7 +138,8 @@ export default function App() {
     handleSaveEdit,
     handleClearSessions,
     loadSession,
-    deleteSession
+    deleteSession,
+    handleNewConversation
   } = useConversationHistory();
 
   // --- UI Settings ---
@@ -405,6 +406,24 @@ export default function App() {
     setHistoryRenderLimit(nextLimit);
   };
 
+  const handleNewConversationAction = useCallback(() => {
+    if (history.length === 0) {
+      handleNewConversation();
+      return;
+    }
+
+    const confirmMsg = uiLangCode === 'ko'
+      ? '현재 대화를 저장하고 새로운 대화를 시작하시겠습니까?'
+      : 'Would you like to save the current conversation and start a new one?';
+
+    if (window.confirm(confirmMsg)) {
+      // The saving logic is already handled by the auto-sync in useConversationHistory
+      handleNewConversation();
+      setCurrentTurnText('');
+      enqueueToast(uiLangCode === 'ko' ? '새 대화가 시작되었습니다.' : 'New conversation started.', 'success');
+    }
+  }, [history, handleNewConversation, uiLangCode, enqueueToast]);
+
   const handleSummarize = async () => {
     if (history.length < 2) {
       alert("대화 내용이 너무 적어 요약할 수 없습니다.");
@@ -539,6 +558,7 @@ export default function App() {
         setUiLangCode={setUiLangCode}
         setIsExportMenuOpen={setIsExportMenuOpen}
         handleSummarize={handleSummarize}
+        onNewConversation={handleNewConversationAction}
         t={t}
       />
 
@@ -612,6 +632,22 @@ export default function App() {
         handRaiseStatus={handRaiseStatus}
         isHost={isHost}
         uiLangCode={uiLangCode}
+        onTextSubmit={(text) => {
+          // Same flow as voice transcription
+          const newItem = {
+            id: crypto.randomUUID(),
+            original: text,
+            translated: '',
+            isTranslating: true,
+            timestamp: Date.now(),
+          };
+          setHistory(prev => [...prev, newItem]);
+          translateText(text, newItem.id, langInput, langOutput);
+          // Broadcast if in live sharing
+          if (roomStatus === 'hosting' || (roomStatus === 'joined' && (!micRestricted || handRaiseStatus === 'approved'))) {
+            broadcastMessage(text, langInput.code);
+          }
+        }}
       />
 
       <CameraView

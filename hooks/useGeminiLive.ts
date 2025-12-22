@@ -199,15 +199,16 @@ export function useGeminiLive({ langInput, onTranscriptReceived, onAudioReceived
 
                         processor.onaudioprocess = async (e) => {
                             const session = await sessionPromise;
-                            // 세션 객체가 준비되지 않았거나 send 메서드가 없으면 전송을 중단
-                            if (!session || typeof session.send !== 'function') {
-                                console.error('Gemini session is not ready or send is unavailable');
+                            // send / sendAudio 호환 처리
+                            const sendFn = session && (session.sendAudio || session.send);
+                            if (!session || typeof sendFn !== 'function') {
+                                console.error('Gemini session is not ready or send/sendAudio is unavailable');
                                 return;
                             }
                             if (geminiMicDesiredRef.current) {
                                 const inputData = e.inputBuffer.getChannelData(0);
                                 const pcm16 = float32ToInt16(inputData);
-                                session.send({
+                                sendFn.call(session, {
                                     realtimeInput: {
                                         mediaChunks: [{
                                             data: arrayBufferToBase64(pcm16.buffer),
@@ -215,7 +216,6 @@ export function useGeminiLive({ langInput, onTranscriptReceived, onAudioReceived
                                         }]
                                     }
                                 });
-                                // Keep the camelCase but add a check for the session object readiness
                                 if (status !== ConnectionStatus.CONNECTED && isCurrentAttempt()) {
                                     setStatus(ConnectionStatus.CONNECTED);
                                 }

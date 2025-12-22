@@ -53,7 +53,7 @@ export const VOICE_OPTIONS: VoiceOption[] = [
   { name: 'Zephyr', label: 'Zephyr', gender: 'Female', style: 'Energetic' },
 ];
 
-export const MODEL_LIVE = 'gemini-live-2.5-flash-native-audio';
+export const MODEL_LIVE = 'gemini-2.5-flash-native-audio-preview-09-2025';
 export const MODEL_TRANSLATE = 'gemini-2.5-flash';
 export const MODEL_VISION = 'gemini-2.5-flash';
 export const MODEL_TTS = 'gemini-2.5-flash-preview-tts';

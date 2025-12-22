@@ -62,15 +62,17 @@ const ConversationList: React.FC<ConversationListProps> = ({
 }) => {
     return (
         <div className="flex-1 overflow-hidden relative bg-slate-50 flex flex-col">
-            {/* Visualizer Background */}
-            <div className="absolute top-0 left-0 right-0 h-32 opacity-30 pointer-events-none z-0">
-                <Visualizer analyser={analyser} isActive={isMicOn} color="#6366f1" />
-            </div>
+            {/* Visualizer Background: 마이크 켜졌을 때만 표시 */}
+            {analyser && isMicOn && (
+                <div className="absolute top-0 left-0 right-0 h-32 opacity-30 pointer-events-none z-0">
+                    <Visualizer analyser={analyser} isActive={isMicOn} color="#6366f1" />
+                </div>
+            )}
 
             {/* Scrollable Content */}
             <div
                 ref={historyRef}
-                className="flex-1 overflow-y-auto p-4 z-10 relative scroll-smooth"
+                className="flex-1 overflow-y-auto p-4 pb-44 md:pb-28 z-10 relative scroll-smooth"
             >
                 {history.length === 0 && !currentTurnText && (
                     <div className="h-full flex flex-col items-center justify-start text-gray-400 text-center px-4 opacity-70 overflow-y-auto py-0">

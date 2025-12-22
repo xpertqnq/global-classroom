@@ -38,6 +38,9 @@ export function useGeminiLive({ langInput, onTranscriptReceived, onAudioReceived
     const originalMediaRecorderRef = useRef<MediaRecorder | null>(null);
     const originalAudioChunksRef = useRef<Blob[]>([]);
 
+    // Transcription accumulation ref
+    const currentTurnTranscriptRef = useRef<string>('');
+
     const cleanupAudio = useCallback(() => {
         if (currentSourceRef.current) {
             currentSourceRef.current.stop();
@@ -237,11 +240,12 @@ export function useGeminiLive({ langInput, onTranscriptReceived, onAudioReceived
                         console.log('[DEBUG] Gemini onmessage received:', JSON.stringify(msg).slice(0, 500));
                         if (!isCurrentAttempt()) return;
 
-                        // inputTranscription 처리 (실시간 전사)
+                        // inputTranscription 처리 (실시간 전사) - 조각을 누적
                         if (msg.serverContent?.inputTranscription?.text) {
-                            const text = msg.serverContent.inputTranscription.text;
-                            // isFinal은 turnComplete에서 처리
-                            onTranscriptReceived(text, false);
+                            const chunk = msg.serverContent.inputTranscription.text;
+                            currentTurnTranscriptRef.current += chunk;
+                            // 실시간으로 누적된 텍스트 표시
+                            onTranscriptReceived(currentTurnTranscriptRef.current, false);
                         }
 
                         if (msg.serverContent?.modelTurn?.parts) {
@@ -256,8 +260,12 @@ export function useGeminiLive({ langInput, onTranscriptReceived, onAudioReceived
                             // Handle interruption if needed
                         }
                         if (msg.serverContent?.turnComplete) {
-                            // 턴이 완료되면 최종 전사로 처리
-                            // (현재 턴 텍스트를 최종 확정)
+                            // 턴이 완료되면 누적된 전사를 최종 확정
+                            if (currentTurnTranscriptRef.current.trim()) {
+                                onTranscriptReceived(currentTurnTranscriptRef.current.trim(), true);
+                            }
+                            // 다음 턴을 위해 초기화
+                            currentTurnTranscriptRef.current = '';
                         }
                     },
                     ontranscript: (t: any) => {

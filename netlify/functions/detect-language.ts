@@ -32,7 +32,8 @@ export const handler = async (event: any) => {
   let body: any = {};
   try {
     body = event.body ? JSON.parse(event.body) : {};
-  } catch {
+  } catch (err) {
+    console.error('detect-language: failed to parse body', err);
     body = {};
   }
 
@@ -60,7 +61,7 @@ Text: ${JSON.stringify(text)}`;
     try {
       const response = await ai.models.generateContent({
         model,
-        contents: { parts: [{ text: prompt }] },
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
         config: {
           responseMimeType: 'application/json',
           responseSchema: {
@@ -74,9 +75,15 @@ Text: ${JSON.stringify(text)}`;
         },
       });
 
-      const json = JSON.parse(response.text || '{}') as { code?: SupportedCode; confidence?: number };
-      const code = SUPPORTED_CODES.includes((json.code as any) ?? '') ? (json.code as SupportedCode) : 'en';
-      const confidence = typeof json.confidence === 'number' ? json.confidence : 0;
+      let parsed: any = {};
+      try {
+        parsed = response.text ? JSON.parse(response.text) : {};
+      } catch (e) {
+        console.error(`detect-language: JSON parse failed for model ${model}`, e, response.text);
+      }
+
+      const code = SUPPORTED_CODES.includes((parsed.code as any) ?? '') ? (parsed.code as SupportedCode) : 'en';
+      const confidence = typeof parsed.confidence === 'number' ? parsed.confidence : 0;
 
       return {
         statusCode: 200,
@@ -85,6 +92,7 @@ Text: ${JSON.stringify(text)}`;
       };
     } catch (error: any) {
       lastError = error;
+      console.error(`detect-language: model ${model} failed`, error);
       // 429 (Rate Limit) 또는 503인 경우 다음 모델 시도
       const status = error?.status || error?.response?.status;
       if (status === 429 || status === 503 || error?.message?.includes('429') || error?.message?.includes('RESOURCE_EXHAUSTED')) {

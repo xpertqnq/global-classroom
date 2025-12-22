@@ -48,6 +48,7 @@ export const handler = async (event: any) => {
 
   const ai = new GoogleGenAI({ apiKey });
   let lastError: any = null;
+  let lastErrorStatus: any = null;
 
   const prompt = `Detect the language of the following text.
 Return JSON only.
@@ -92,6 +93,7 @@ Text: ${JSON.stringify(text)}`;
       };
     } catch (error: any) {
       lastError = error;
+      lastErrorStatus = error?.status || error?.response?.status;
       console.error(`detect-language: model ${model} failed`, error);
       // 429 (Rate Limit) 또는 503인 경우 다음 모델 시도
       const status = error?.status || error?.response?.status;
@@ -108,8 +110,9 @@ Text: ${JSON.stringify(text)}`;
     statusCode: 500,
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      error: '언어 감지에 실패했습니다.',
+      error: '언어 감지에 실패했습니다. 모든 모델의 제한량이 소진되었거나 오류가 발생했습니다.',
       detail: lastError?.message || String(lastError),
+      status: lastErrorStatus,
     }),
   };
 };

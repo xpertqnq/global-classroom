@@ -48,6 +48,8 @@ export const handler = async (event: any) => {
 
   const ai = new GoogleGenAI({ apiKey });
   let lastError: any = null;
+  let lastErrorStatus: any = null;
+  let lastErrorDetail: any = null;
 
   // 폴백 모델 순회
   for (const model of FALLBACK_MODELS) {
@@ -74,7 +76,15 @@ Text: "${text}"`,
       };
     } catch (error: any) {
       lastError = error;
-      console.error(`translate: model ${model} failed`, error);
+      lastErrorStatus = error?.status || error?.response?.status;
+      lastErrorDetail = error?.response?.data || error?.response || error?.message;
+      console.error(`translate: model ${model} failed`, {
+        status: lastErrorStatus,
+        message: error?.message,
+        data: error?.response?.data,
+        full: error,
+      });
+      console.error('translate: raw error string', JSON.stringify(error, Object.getOwnPropertyNames(error)));
       // 429 (Rate Limit) 또는 503 (Service Unavailable)인 경우 다음 모델 시도
       const status = error?.status || error?.response?.status;
       if (status === 429 || status === 503 || error?.message?.includes('429') || error?.message?.includes('RESOURCE_EXHAUSTED')) {
@@ -91,7 +101,8 @@ Text: "${text}"`,
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       error: '번역에 실패했습니다. 모든 모델의 제한량이 소진되었습니다.',
-      detail: lastError?.message || String(lastError),
+      detail: lastErrorDetail || lastError?.message || String(lastError),
+      status: lastErrorStatus,
     }),
   };
 };

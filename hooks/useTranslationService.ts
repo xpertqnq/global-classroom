@@ -29,8 +29,19 @@ export function useTranslationService({
             headers,
             body: JSON.stringify(body),
         });
-        if (!resp.ok) throw new Error(`API Error: ${resp.statusText}`);
-        return resp.json();
+        const text = await resp.text();
+        if (!resp.ok) {
+            // 서버가 반환한 에러 메시지와 status를 포함해 디버그
+            let detail = '';
+            try {
+                const json = JSON.parse(text || '{}');
+                detail = json?.detail || json?.error || '';
+            } catch {
+                detail = text;
+            }
+            throw new Error(`API Error ${resp.status} ${resp.statusText}${detail ? `: ${detail}` : ''}`);
+        }
+        return text ? JSON.parse(text) : ({} as T);
     }, [settings.userApiKey]);
 
     const translateText = async (text: string, id: string, fromLang: Language, toLang: Language) => {

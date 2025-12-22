@@ -29,7 +29,8 @@ export const handler = async (event: any) => {
   let body: any = {};
   try {
     body = event.body ? JSON.parse(event.body) : {};
-  } catch {
+  } catch (err) {
+    console.error('translate: failed to parse body', err);
     body = {};
   }
 
@@ -53,9 +54,14 @@ export const handler = async (event: any) => {
     try {
       const response = await ai.models.generateContent({
         model,
-        contents: `Translate the following text from ${from} to ${to}.
+        contents: [{
+          role: 'user',
+          parts: [{
+            text: `Translate the following text from ${from} to ${to}.
 Output ONLY the translated text, no explanations.
 Text: "${text}"`,
+          }],
+        }],
       });
 
       return {
@@ -68,6 +74,7 @@ Text: "${text}"`,
       };
     } catch (error: any) {
       lastError = error;
+      console.error(`translate: model ${model} failed`, error);
       // 429 (Rate Limit) 또는 503 (Service Unavailable)인 경우 다음 모델 시도
       const status = error?.status || error?.response?.status;
       if (status === 429 || status === 503 || error?.message?.includes('429') || error?.message?.includes('RESOURCE_EXHAUSTED')) {

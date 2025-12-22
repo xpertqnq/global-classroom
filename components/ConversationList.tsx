@@ -72,7 +72,7 @@ const ConversationList: React.FC<ConversationListProps> = ({
             {/* Scrollable Content */}
             <div
                 ref={historyRef}
-                className="flex-1 overflow-y-auto p-4 pb-32 md:pb-24 z-10 relative scroll-smooth"
+                className="flex-1 overflow-y-auto p-4 pb-52 md:pb-24 z-10 relative scroll-smooth"
             >
                 {history.length === 0 && !currentTurnText && (
                     <div className="h-full flex flex-col items-center justify-start text-gray-400 text-center px-4 opacity-70 overflow-y-auto py-0">
@@ -105,7 +105,7 @@ const ConversationList: React.FC<ConversationListProps> = ({
                                         <li>{t.guideVision}</li>
                                         <li>{t.guideAuto}</li>
                                     </ul>
-                                    <div className="grid grid-cols-2 gap-2 text-[11px]">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
                                         <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2" title={uiLangCode === 'ko' ? '키보드 단축키' : 'Keyboard Shortcuts'}>
                                             <div className="font-bold text-gray-700">{t.shortcutTitle}</div>
                                             <div className="mt-1 text-gray-500">{t.shortcutSpace}<br />Enter: {uiLangCode === 'ko' ? '최근 번역 듣기' : 'Play recent'}</div>
@@ -358,7 +358,7 @@ const ConversationList: React.FC<ConversationListProps> = ({
                     )}
                 </div>
 
-                <div className="h-32"></div> {/* Spacer for bottom bar */}
+                <div className="h-52"></div> {/* Spacer for bottom bar */}
             </div>
         </div>
     );

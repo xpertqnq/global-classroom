@@ -199,11 +199,11 @@ export function useGeminiLive({ langInput, onTranscriptReceived, onAudioReceived
 
                         processor.onaudioprocess = async (e) => {
                             const session = await sessionPromise;
-                            // send / sendAudio 호환 처리
-                            const sendFn = session && (session.sendAudio || session.send);
+                            // send / sendAudio 호환 처리 (SDK 버전에 따라 다를 수 있음)
+                            const sendFn = session && (typeof session.sendAudio === 'function' ? session.sendAudio : session.send);
                             if (!session || typeof sendFn !== 'function') {
-                                console.error('Gemini session is not ready or send/sendAudio is unavailable');
-                                setErrorMessage('세션이 준비되지 않았습니다. 다시 시도하세요.');
+                                // console.error('Gemini session is not ready or send method is unavailable');
+                                // setErrorMessage('세션이 준비되지 않았습니다. 다시 시도하세요.');
                                 return;
                             }
                             if (geminiMicDesiredRef.current) {

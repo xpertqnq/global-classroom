@@ -420,6 +420,8 @@ export default function App() {
       // The saving logic is already handled by the auto-sync in useConversationHistory
       handleNewConversation();
       setCurrentTurnText('');
+      setLangInput(SUPPORTED_LANGUAGES[0]); // Reset to Auto
+      setLangOutput(SUPPORTED_LANGUAGES.find(l => l.code === 'vi') || SUPPORTED_LANGUAGES[1]); // Reset to Vietnamese
       enqueueToast(uiLangCode === 'ko' ? '새 대화가 시작되었습니다.' : 'New conversation started.', 'success');
     }
   }, [history, handleNewConversation, uiLangCode, enqueueToast]);
@@ -589,6 +591,7 @@ export default function App() {
       />
 
       <ConversationList
+        key={`list_${currentSessionId}`}
         analyser={analyser}
         isMicOn={isMicOn}
         history={history}
@@ -618,6 +621,7 @@ export default function App() {
       />
 
       <BottomControls
+        key={`controls_${currentSessionId}`}
         isAutoPlay={isAutoPlay}
         setIsAutoPlay={setIsAutoPlay}
         isScrollLocked={isScrollLocked}

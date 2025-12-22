@@ -82,13 +82,16 @@ export function useTranslationService({
             if (isAutoPlay && translated) {
                 playTTS(translated, id);
             }
+        } catch (err) {
+            console.error("Translation failed:", err);
             setHistory(prev => prev.map(item =>
-                item.id === id ? { ...item, translated: "Error", isTranslating: false } : item
+                item.id === id ? { ...item, translated: "번역 오류", isTranslating: false } : item
             ));
         } finally {
             pendingIdsRef.current.delete(id);
         }
     };
+
 
     return {
         postApi,

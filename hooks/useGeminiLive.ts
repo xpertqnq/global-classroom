@@ -203,21 +203,28 @@ export function useGeminiLive({ langInput, onTranscriptReceived, onAudioReceived
                             const sendFn = session && (session.sendAudio || session.send);
                             if (!session || typeof sendFn !== 'function') {
                                 console.error('Gemini session is not ready or send/sendAudio is unavailable');
+                                setErrorMessage('세션이 준비되지 않았습니다. 다시 시도하세요.');
                                 return;
                             }
                             if (geminiMicDesiredRef.current) {
-                                const inputData = e.inputBuffer.getChannelData(0);
-                                const pcm16 = float32ToInt16(inputData);
-                                sendFn.call(session, {
-                                    realtimeInput: {
-                                        mediaChunks: [{
-                                            data: arrayBufferToBase64(pcm16.buffer),
-                                            mimeType: 'audio/pcm;rate=16000'
-                                        }]
+                                try {
+                                    const inputData = e.inputBuffer.getChannelData(0);
+                                    const pcm16 = float32ToInt16(inputData);
+                                    sendFn.call(session, {
+                                        realtimeInput: {
+                                            mediaChunks: [{
+                                                data: arrayBufferToBase64(pcm16.buffer),
+                                                mimeType: 'audio/pcm;rate=16000'
+                                            }]
+                                        }
+                                    });
+                                    if (status !== ConnectionStatus.CONNECTED && isCurrentAttempt()) {
+                                        setStatus(ConnectionStatus.CONNECTED);
                                     }
-                                });
-                                if (status !== ConnectionStatus.CONNECTED && isCurrentAttempt()) {
-                                    setStatus(ConnectionStatus.CONNECTED);
+                                } catch (err) {
+                                    console.error('Gemini send error:', err);
+                                    setErrorMessage('음성 전송 중 오류가 발생했습니다.');
+                                    setStatus(ConnectionStatus.ERROR);
                                 }
                             }
                         };

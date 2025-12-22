@@ -100,7 +100,7 @@ const BottomControls: React.FC<BottomControlsProps> = ({
             {/* Text Input Field - Always mounted, controlled by max-height transition */}
             <div
                 className={`overflow-hidden transition-all duration-300 ease-out ${isTextMode
-                    ? 'max-h-24 opacity-100 mb-6'
+                    ? 'max-h-24 opacity-100 mb-10'
                     : 'max-h-0 opacity-0 mb-0'
                     }`}
             >

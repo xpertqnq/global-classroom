@@ -29,16 +29,22 @@ export default function VisionToastSystem({
                 const message =
                     n.status === 'done'
                         ? (translatedText || originalText || t.visionNoText)
-                        : n.status === 'error'
-                            ? (n.error || t.visionFail)
-                            : t.visionAnalyzing;
+                        : n.status === 'capturing'
+                            ? '이미지 캡처 중...'
+                            : n.status === 'analyzing'
+                                ? t.visionAnalyzing || '분석 중...'
+                                : n.status === 'translating'
+                                    ? '번역 중...'
+                                    : n.status === 'error'
+                                        ? (n.error || t.visionFail)
+                                        : '대기 중...';
 
                 const statusClass =
                     n.status === 'done'
                         ? 'text-emerald-700'
                         : n.status === 'error'
                             ? 'text-red-700'
-                            : 'text-gray-600';
+                            : 'text-indigo-600';
 
                 return (
                     <div key={id} className="bg-white border border-gray-200 shadow-lg rounded-xl p-3">

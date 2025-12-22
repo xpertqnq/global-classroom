@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useRef } from 'react';
 import { Language, ConversationItem, AppSettings } from '../types';
 
 interface UseTranslationServiceProps {
@@ -16,6 +16,8 @@ export function useTranslationService({
     playTTS,
     MODEL_TRANSLATE
 }: UseTranslationServiceProps) {
+    const pendingIdsRef = useRef<Set<string>>(new Set());
+
     const postApi = useCallback(async <T,>(endpoint: string, body: any): Promise<T> => {
         const headers: Record<string, string> = { "Content-Type": "application/json" };
         if (settings.userApiKey) {
@@ -31,6 +33,8 @@ export function useTranslationService({
     }, [settings.userApiKey]);
 
     const translateText = async (text: string, id: string, fromLang: Language, toLang: Language) => {
+        if (pendingIdsRef.current.has(id)) return;
+        pendingIdsRef.current.add(id);
         try {
             const data = await postApi<{ translated: string }>('translate', {
                 text,
@@ -45,11 +49,11 @@ export function useTranslationService({
             if (isAutoPlay && translated) {
                 playTTS(translated, id);
             }
-        } catch (e) {
-            console.error("Translation failed", e);
             setHistory(prev => prev.map(item =>
                 item.id === id ? { ...item, translated: "Error", isTranslating: false } : item
             ));
+        } finally {
+            pendingIdsRef.current.delete(id);
         }
     };
 

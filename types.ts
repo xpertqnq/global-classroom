@@ -30,6 +30,7 @@ export interface ConversationItem {
   audioBase64?: string; // Cache for TTS audio (in-memory)
   audioUrl?: string; // Firebase Storage URL
   updatedAt?: number;
+  ttsStatus?: 'loading' | 'playing' | 'paused' | 'error';
 }
 
 export interface ConversationSession {
@@ -100,7 +101,7 @@ export interface TranslationMap {
   downloadCombinedAudio: string;
 }
 
-export type VisionNotificationStatus = 'processing' | 'done' | 'error';
+export type VisionNotificationStatus = 'capturing' | 'analyzing' | 'translating' | 'done' | 'error';
 
 export interface VisionNotification {
   id: string;

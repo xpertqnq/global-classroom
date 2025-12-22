@@ -11,6 +11,7 @@ interface UseAudioPlayerProps {
     settings: AppSettings;
     postApi: <T>(endpoint: string, body: any) => Promise<T>;
     playPCM: (base64: string) => Promise<void>;
+    stopPCM: () => void;
     MODEL_TTS: string;
     t: any;
 }
@@ -22,6 +23,7 @@ export function useAudioPlayer({
     settings,
     postApi,
     playPCM,
+    stopPCM,
     MODEL_TTS,
     t
 }: UseAudioPlayerProps) {
@@ -76,17 +78,34 @@ export function useAudioPlayer({
         const normalized = String(text || '').trim();
         if (!normalized) return;
         const cacheKey = id ? `${id}:${selectedVoice.name}:${MODEL_TTS}` : null;
+
+        const updateStatus = (status: 'loading' | 'playing' | 'paused' | 'error' | undefined) => {
+            if (id) {
+                setHistory(prev => prev.map(item => item.id === id ? { ...item, ttsStatus: status } : item));
+            }
+        };
+
         if (id) {
             const item = history.find(i => i.id === id);
-            if (item?.audioBase64) return playPCM(item.audioBase64);
+            if (item?.audioBase64) {
+                updateStatus('playing');
+                await playPCM(item.audioBase64);
+                updateStatus(undefined);
+                return;
+            }
         }
+
         if (id && cacheKey && settings.audioCacheEnabled) {
             const cached = await getCachedAudioBase64(cacheKey);
             if (cached) {
-                setHistory(prev => prev.map(item => item.id === id ? { ...item, audioBase64: cached } : item));
-                return playPCM(cached);
+                setHistory(prev => prev.map(item => item.id === id ? { ...item, audioBase64: cached, ttsStatus: 'playing' } : item));
+                await playPCM(cached);
+                updateStatus(undefined);
+                return;
             }
         }
+
+        updateStatus('loading');
         const chunks = splitTextForTts(normalized, 200);
         try {
             const pcmChunks: Uint8Array[] = [];
@@ -98,6 +117,7 @@ export function useAudioPlayer({
                 });
                 if (data.audioBase64) {
                     pcmChunks.push(base64ToUint8Array(data.audioBase64));
+                    updateStatus('playing');
                     await playPCM(data.audioBase64);
                 }
             }
@@ -107,14 +127,23 @@ export function useAudioPlayer({
                 let offset = 0;
                 for (const x of pcmChunks) { merged.set(x, offset); offset += x.byteLength; }
                 const mergedBase64 = arrayBufferToBase64(merged.buffer);
-                setHistory(prev => prev.map(item => item.id === id ? { ...item, audioBase64: mergedBase64 } : item));
+                setHistory(prev => prev.map(item => item.id === id ? { ...item, audioBase64: mergedBase64, ttsStatus: undefined } : item));
                 if (cacheKey && settings.audioCacheEnabled) await setCachedAudioBase64(cacheKey, mergedBase64);
+            } else {
+                updateStatus(undefined);
             }
         } catch (e) {
             console.error("TTS failed", e);
+            updateStatus('error');
             if (notifyOnErrorValue) alert(`TTS 실패: ${e instanceof Error ? e.message : String(e)}`);
+            setTimeout(() => updateStatus(undefined), 3000);
         }
     };
+
+    const stopTTS = useCallback(() => {
+        stopPCM();
+        setHistory(prev => prev.map(item => item.ttsStatus === 'playing' ? { ...item, ttsStatus: undefined } : item));
+    }, [stopPCM, setHistory]);
 
     const playAll = async () => {
         for (const item of history) {
@@ -155,6 +184,7 @@ export function useAudioPlayer({
 
     return {
         playTTS,
+        stopTTS,
         playAll,
         handleDownloadSessionAudio
     };

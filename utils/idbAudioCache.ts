@@ -6,7 +6,7 @@ type AudioRecord = {
 
 const DB_NAME = 'global_classroom_audio_cache';
 const STORE_NAME = 'audio';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 
@@ -23,7 +23,8 @@ const openDb = (): Promise<IDBDatabase> => {
     req.onupgradeneeded = () => {
       const db = req.result;
       if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+        const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+        store.createIndex('updatedAt', 'updatedAt', { unique: false });
       }
     };
 
@@ -79,6 +80,38 @@ export const getCachedAudioBase64 = async (id: string): Promise<string | null> =
   }
 };
 
+const cleanupOldRecords = async (limit: number = 100): Promise<void> => {
+  try {
+    const db = await openDb();
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    const store = tx.objectStore(STORE_NAME);
+    const index = store.index('updatedAt');
+
+    const count = await requestToPromise(store.count());
+    if (count > limit) {
+      const deleteCount = count - limit;
+      const cursorReq = index.openCursor();
+      let itemsDeleted = 0;
+
+      return new Promise((resolve, reject) => {
+        cursorReq.onsuccess = (e) => {
+          const cursor = (e.target as IDBRequest<IDBCursorWithValue | null>).result;
+          if (cursor && itemsDeleted < deleteCount) {
+            cursor.delete();
+            itemsDeleted++;
+            cursor.continue();
+          } else {
+            resolve();
+          }
+        };
+        cursorReq.onerror = () => reject(cursorReq.error);
+      });
+    }
+  } catch (e) {
+    console.warn('Audio cache cleanup failed', e);
+  }
+};
+
 export const setCachedAudioBase64 = async (id: string, audioBase64: string): Promise<void> => {
   if (!id || !audioBase64) return;
 
@@ -89,6 +122,7 @@ export const setCachedAudioBase64 = async (id: string, audioBase64: string): Pro
     const record: AudioRecord = { id, audioBase64, updatedAt: Date.now() };
     await requestToPromise(store.put(record));
     await txDone(tx);
+    await cleanupOldRecords(100);
   } catch (e) {
     console.warn('indexedDB 오디오 캐시 저장 실패', e);
   }

@@ -6,9 +6,10 @@ interface UseStorageProps {
     accessToken: string | null;
     setHistory: React.Dispatch<React.SetStateAction<ConversationItem[]>>;
     setCurrentSessionId: (id: string) => void;
+    enqueueToast: (message: string, type?: 'success' | 'error' | 'info' | 'warning') => void;
 }
 
-export function useStorage({ accessToken, setHistory, setCurrentSessionId }: UseStorageProps) {
+export function useStorage({ accessToken, setHistory, setCurrentSessionId, enqueueToast }: UseStorageProps) {
     const [driveSessions, setDriveSessions] = useState<any[]>([]);
     const [isLoadingDriveSessions, setIsLoadingDriveSessions] = useState(false);
     const [selectedDriveSessionId, setSelectedDriveSessionId] = useState('');
@@ -45,17 +46,17 @@ export function useStorage({ accessToken, setHistory, setCurrentSessionId }: Use
             const result = await restoreDriveSession(accessToken, selectedDriveSessionId, includeAudio);
             if (result && result.history) {
                 setHistory(result.history);
-                // If restoreDriveSession returns the original session ID, used it; otherwise keep current
-                setDriveRestoreMessage('성공적으로 복원되었습니다.');
-                setTimeout(() => setIsHistoryModalOpen(false), 1500);
+                enqueueToast('성공적으로 복원되었습니다.', 'success');
+                setIsHistoryModalOpen(false);
             } else {
-                setDriveRestoreMessage('복원 실패: 데이터가 유효하지 않습니다.');
+                enqueueToast('복원 실패: 데이터가 유효하지 않습니다.', 'error');
             }
         } catch (e) {
             console.error(e);
-            setDriveRestoreMessage('복원 중 오류가 발생했습니다.');
+            enqueueToast('복원 중 오류가 발생했습니다.', 'error');
         } finally {
             setIsRestoringDriveSession(false);
+            setDriveRestoreMessage('');
         }
     };
 

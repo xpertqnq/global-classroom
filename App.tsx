@@ -47,6 +47,7 @@ import ConversationList from './components/ConversationList';
 import BottomControls from './components/BottomControls';
 import ExportMenu from './components/ExportMenu';
 import VisionToastSystem from './components/VisionToastSystem';
+import ToastSystem from './components/ToastSystem';
 
 import { useAuth } from './hooks/useAuth';
 import { useConversationHistory } from './hooks/useConversationHistory';
@@ -56,6 +57,7 @@ import { useVision } from './hooks/useVision';
 import { useAudioPlayer } from './hooks/useAudioPlayer';
 import { useStorage } from './hooks/useStorage';
 import { useTranslationService } from './hooks/useTranslationService';
+import { useToast } from './hooks/useToast';
 import { AppSettings, VisionNotification } from './types';
 
 import {
@@ -111,6 +113,8 @@ export default function App() {
     handleLoginSelection,
     handleLogout,
   } = useAuth();
+
+  const { toasts, enqueueToast, dismissToast } = useToast();
 
   const {
     history,
@@ -202,6 +206,7 @@ export default function App() {
     toggleMic,
     cleanupAudio,
     playPCM,
+    stopPCM,
     setErrorMessage
   } = useGeminiLive({
     langInput,
@@ -214,6 +219,7 @@ export default function App() {
   // --- Custom Service: Audio & TTS ---
   const {
     playTTS,
+    stopTTS,
     playAll,
     handleDownloadSessionAudio
   } = useAudioPlayer({
@@ -223,6 +229,7 @@ export default function App() {
     settings,
     postApi,
     playPCM,
+    stopPCM,
     MODEL_TTS,
     t
   });
@@ -274,7 +281,7 @@ export default function App() {
     setSelectedLocalSessionId,
     handleOpenHistory,
     handleRestoreFromDrive
-  } = useStorage({ accessToken, setHistory, setCurrentSessionId });
+  } = useStorage({ accessToken, setHistory, setCurrentSessionId, enqueueToast });
 
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isNotificationMenuOpen, setIsNotificationMenuOpen] = useState(false);
@@ -509,6 +516,7 @@ export default function App() {
         status={status}
         toggleMic={toggleMic}
         playAll={playAll}
+        stopTTS={stopTTS}
         setIsCameraOpen={setIsCameraOpen}
         t={t}
       />
@@ -602,6 +610,8 @@ export default function App() {
         isOpen={isNotebookLMGuideOpen}
         onClose={() => setIsNotebookLMGuideOpen(false)}
       />
+
+      <ToastSystem toasts={toasts} onDismiss={dismissToast} />
 
     </div >
   );

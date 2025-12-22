@@ -14,6 +14,10 @@ export const GOOGLE_SCOPES = [
   'https://www.googleapis.com/auth/userinfo.email'
 ].join(' ');
 
+if (!GOOGLE_CLIENT_ID) {
+  console.warn("VITE_GOOGLE_CLIENT_ID가 설정되지 않았습니다. Google 로그인 기능이 제한될 수 있습니다.");
+}
+
 export const SUPPORTED_LANGUAGES: Language[] = [
   { code: 'ko', name: '한국어 (Korean)', flag: '🇰🇷' },
   { code: 'en', name: 'English', flag: '🇺🇸' },

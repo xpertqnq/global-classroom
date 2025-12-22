@@ -41,8 +41,11 @@ export function useVision({ postApi, langInput, langOutput, MODEL_VISION }: UseV
         const id = `vision_${Date.now()}_${Math.random().toString(16).slice(2)}`;
         const langA = langInput.code;
         const langB = langOutput.code;
-        const item: VisionNotification = { id, timestamp: Date.now(), status: 'processing', isRead: false };
+        const item: VisionNotification = { id, timestamp: Date.now(), status: 'capturing', isRead: false };
         setVisionNotifications(prev => [item, ...prev]);
+        const updateStatus = (s: VisionNotification['status']) => {
+            setVisionNotifications(prev => prev.map(n => n.id === id ? { ...n, status: s } : n));
+        };
         try {
             const base64Image = await new Promise<string>((resolve, reject) => {
                 const reader = new FileReader();
@@ -50,11 +53,16 @@ export function useVision({ postApi, langInput, langOutput, MODEL_VISION }: UseV
                 reader.onerror = reject;
                 reader.readAsDataURL(payload.blob);
             });
+            updateStatus('analyzing');
             const result = await postApi<VisionResult>('vision', { base64Image, langA, langB, model: MODEL_VISION });
+            updateStatus('translating');
+            // We simulate a short delay for 'translating' if vision API does both, 
+            // but usually it's one call. Let's just go to done after success since the API is 'vision' (transcribe + translate)
             setVisionNotifications(prev => prev.map(n => n.id === id ? { ...n, status: 'done', result } : n));
             enqueueVisionToast(id);
         } catch (e) {
-            setVisionNotifications(prev => prev.map(n => n.id === id ? { ...n, status: 'error', error: String(e) } : n));
+            updateStatus('error');
+            setVisionNotifications(prev => prev.map(n => n.id === id ? { ...n, error: String(e) } : n));
             enqueueVisionToast(id);
         }
     };

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import Visualizer from './Visualizer';
 import { MicIcon, CopyIcon } from './Icons';
 import { ConversationItem, TranslationMap, ConnectionStatus } from '../types';
@@ -27,6 +27,7 @@ interface ConversationListProps {
     handleSplitItem: (id: string, index: number) => void;
     copyToClipboard: (text: string) => void;
     playTTS: (text: string, id: string) => void;
+    stopTTS: () => void;
     startEditing: (item: ConversationItem) => void;
 }
 
@@ -54,6 +55,7 @@ const ConversationList: React.FC<ConversationListProps> = ({
     handleSplitItem,
     copyToClipboard,
     playTTS,
+    stopTTS,
     startEditing,
 }) => {
     return (
@@ -253,14 +255,18 @@ const ConversationList: React.FC<ConversationListProps> = ({
                                         </div>
 
                                         <div
-                                            className={`mt-2 p-4 rounded-xl border transition-all text-sm md:text-base ${item.isTranslating
+                                            className={`mt-2 p-4 rounded-xl border transition-all text-sm md:text-base relative ${item.isTranslating
                                                 ? 'bg-gray-50 border-gray-100'
                                                 : 'bg-indigo-50/50 border-indigo-100 shadow-sm'
                                                 } ${!item.isTranslating && item.translated ? 'cursor-pointer hover:bg-indigo-100 active:scale-[0.99]' : ''
                                                 }`}
                                             onClick={() => {
                                                 if (!item.isTranslating && item.translated) {
-                                                    playTTS(item.translated, item.id);
+                                                    if (item.ttsStatus === 'playing') {
+                                                        stopTTS();
+                                                    } else {
+                                                        playTTS(item.translated, item.id);
+                                                    }
                                                 }
                                             }}
                                         >
@@ -271,7 +277,28 @@ const ConversationList: React.FC<ConversationListProps> = ({
                                                     <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce delay-150"></div>
                                                 </div>
                                             ) : (
-                                                <span className="text-indigo-900 font-medium leading-relaxed text-sm md:text-base">{item.translated}</span>
+                                                <>
+                                                    <span className="text-indigo-900 font-medium leading-relaxed text-sm md:text-base pr-8 block">{item.translated}</span>
+                                                    {item.translated && (
+                                                        <div className="absolute right-3 bottom-3 flex items-center justify-center">
+                                                            {item.ttsStatus === 'loading' ? (
+                                                                <div className="w-5 h-5 border-2 border-indigo-300 border-t-indigo-600 rounded-full animate-spin" />
+                                                            ) : item.ttsStatus === 'playing' ? (
+                                                                <div className="p-1 rounded-full bg-indigo-600 text-white animate-pulse">
+                                                                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" /></svg>
+                                                                </div>
+                                                            ) : item.ttsStatus === 'error' ? (
+                                                                <div className="text-red-500">
+                                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                                                </div>
+                                                            ) : (
+                                                                <div className="p-1 rounded-full bg-indigo-100 text-indigo-600 group-hover:bg-indigo-200 transition-colors">
+                                                                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </>
                                             )}
                                         </div>
                                     </>
@@ -307,4 +334,4 @@ const ConversationList: React.FC<ConversationListProps> = ({
     );
 };
 
-export default ConversationList;
+export default memo(ConversationList);

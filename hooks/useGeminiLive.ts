@@ -25,6 +25,7 @@ export function useGeminiLive({ langInput, onTranscriptReceived, onAudioReceived
     const streamRef = useRef<MediaStream | null>(null);
     const processorRef = useRef<ScriptProcessorNode | null>(null);
     const sessionPromiseRef = useRef<Promise<any> | null>(null);
+    const currentSourceRef = useRef<AudioBufferSourceNode | null>(null);
 
     // Gemini Connection Refs
     const geminiReconnectTimeoutRef = useRef<number | null>(null);
@@ -38,6 +39,10 @@ export function useGeminiLive({ langInput, onTranscriptReceived, onAudioReceived
     const originalAudioChunksRef = useRef<Blob[]>([]);
 
     const cleanupAudio = useCallback(() => {
+        if (currentSourceRef.current) {
+            currentSourceRef.current.stop();
+            currentSourceRef.current = null;
+        }
         if (processorRef.current) {
             processorRef.current.disconnect();
             processorRef.current = null;
@@ -277,6 +282,10 @@ export function useGeminiLive({ langInput, onTranscriptReceived, onAudioReceived
     const playPCM = useCallback(async (base64String: string): Promise<void> => {
         return new Promise(async (resolve) => {
             try {
+                if (currentSourceRef.current) {
+                    currentSourceRef.current.stop();
+                    currentSourceRef.current = null;
+                }
                 if (!audioContextRef.current) {
                     audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
                 }
@@ -288,13 +297,26 @@ export function useGeminiLive({ langInput, onTranscriptReceived, onAudioReceived
                 const source = ctx.createBufferSource();
                 source.buffer = audioBuffer;
                 source.connect(ctx.destination);
-                source.onended = () => resolve();
+                currentSourceRef.current = source;
+                source.onended = () => {
+                    if (currentSourceRef.current === source) {
+                        currentSourceRef.current = null;
+                    }
+                    resolve();
+                };
                 source.start();
             } catch (e) {
                 console.error("Audio playback error", e);
                 resolve();
             }
         });
+    }, []);
+
+    const stopPCM = useCallback(() => {
+        if (currentSourceRef.current) {
+            currentSourceRef.current.stop();
+            currentSourceRef.current = null;
+        }
     }, []);
 
     return {
@@ -307,6 +329,7 @@ export function useGeminiLive({ langInput, onTranscriptReceived, onAudioReceived
         connectToGemini,
         toggleMic,
         cleanupAudio,
-        playPCM
+        playPCM,
+        stopPCM
     };
 }

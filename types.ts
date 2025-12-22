@@ -115,4 +115,5 @@ export interface AppSettings {
   driveBackupMode: 'manual' | 'auto';
   audioCacheEnabled: boolean;
   recordOriginalEnabled: boolean;
+  userApiKey?: string;
 }

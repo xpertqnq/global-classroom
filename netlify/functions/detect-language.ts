@@ -1,6 +1,6 @@
 import { GoogleGenAI, Type } from '@google/genai';
 
-const SUPPORTED_CODES = ['ko','en','ja','zh','vi','es','fr','de','ru','th','id','ar','hi','tl','mn','uz'] as const;
+const SUPPORTED_CODES = ['ko', 'en', 'ja', 'zh', 'vi', 'es', 'fr', 'de', 'ru', 'th', 'id', 'ar', 'hi', 'tl', 'mn', 'uz'] as const;
 type SupportedCode = (typeof SUPPORTED_CODES)[number];
 export const handler = async (event: any) => {
   if (event.httpMethod !== 'POST') {
@@ -11,12 +11,13 @@ export const handler = async (event: any) => {
     };
   }
 
-  const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+  const userApiKey = event.headers['x-user-api-key'];
+  const apiKey = userApiKey || process.env.GEMINI_API_KEY || process.env.API_KEY;
   if (!apiKey) {
     return {
       statusCode: 500,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: '서버 환경변수 GEMINI_API_KEY가 설정되지 않았습니다.' }),
+      body: JSON.stringify({ error: 'API 키가 설정되지 않았습니다.' }),
     };
   }
 

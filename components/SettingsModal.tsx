@@ -70,6 +70,23 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                             <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${settings.audioCacheEnabled ? 'bg-white/20' : 'bg-gray-100 text-gray-400'}`}>{settings.audioCacheEnabled ? 'ON' : 'OFF'}</span>
                         </button>
                     </div>
+
+                    <div className="space-y-2 pt-4 border-t border-gray-100">
+                        <div className="flex items-center justify-between">
+                            <div className="text-sm font-bold text-gray-800">개인 Gemini API Key (선택)</div>
+                            <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-[10px] text-indigo-600 font-bold hover:underline">키 발급받기</a>
+                        </div>
+                        <input
+                            type="password"
+                            placeholder="AI Studio에서 발급받은 키 입력"
+                            value={settings.userApiKey || ''}
+                            onChange={(e) => setSettings(prev => ({ ...prev, userApiKey: e.target.value }))}
+                            className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                        />
+                        <p className="text-[10px] text-gray-400 leading-relaxed">
+                            준비된 무료 할당량이 소진될 경우, 본인의 API 키를 입력하여 계속 사용할 수 있습니다. 입력된 키는 본인의 브라우저에만 암호화되어 저장됩니다.
+                        </p>
+                    </div>
                 </div>
             </div>
         </div>

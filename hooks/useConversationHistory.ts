@@ -193,6 +193,27 @@ export function useConversationHistory() {
         setHistoryRenderLimit(HISTORY_RENDER_STEP);
     }, []);
 
+    const handleSaveEdit = useCallback((id: string, original: string, translated: string) => {
+        setHistory(prev => prev.map(item => item.id === id ? {
+            ...item, original, translated, updatedAt: Date.now()
+        } : item));
+    }, []);
+
+    const handleClearSessions = useCallback(() => {
+        const now = Date.now();
+        const initial: ConversationSession = {
+            id: `local_${now}`,
+            createdAt: now,
+            updatedAt: now,
+            items: [],
+            title: '새 대화',
+        };
+        setSessions([initial]);
+        setCurrentSessionId(initial.id);
+        isHydratingHistoryRef.current = true;
+        setHistory([]);
+    }, []);
+
     const deleteSession = useCallback((id: string) => {
         setSessions(prev => {
             const next = prev.filter(s => s.id !== id);
@@ -236,6 +257,8 @@ export function useConversationHistory() {
         handleMergeWithAbove,
         handleMergeWithBelow,
         handleSplitItem,
+        handleSaveEdit,
+        handleClearSessions,
         loadSession,
         deleteSession
     };

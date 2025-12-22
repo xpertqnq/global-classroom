@@ -40,16 +40,23 @@ import HistoryModal from './components/HistoryModal';
 import SettingsModal from './components/SettingsModal';
 import ClassroomModal from './components/ClassroomModal';
 import VisionNotificationModal from './components/VisionNotificationModal';
+import SummaryModal from './components/SummaryModal';
 import AppHeader from './components/AppHeader';
 import LanguageSelector from './components/LanguageSelector';
 import ConversationList from './components/ConversationList';
 import BottomControls from './components/BottomControls';
+import ExportMenu from './components/ExportMenu';
+import VisionToastSystem from './components/VisionToastSystem';
 
 import { useAuth } from './hooks/useAuth';
 import { useConversationHistory } from './hooks/useConversationHistory';
 import { useGeminiLive } from './hooks/useGeminiLive';
-import { AppSettings, VisionNotification } from './types';
 import { useExport } from './hooks/useExport';
+import { useVision } from './hooks/useVision';
+import { useAudioPlayer } from './hooks/useAudioPlayer';
+import { useStorage } from './hooks/useStorage';
+import { useTranslationService } from './hooks/useTranslationService';
+import { AppSettings, VisionNotification } from './types';
 
 import {
   MicIcon,
@@ -66,9 +73,9 @@ import {
   ClassroomIcon,
   NotebookLMIcon,
   GoogleLogo,
-  CopyIcon
+  CopyIcon,
+  SparklesIcon
 } from './components/Icons';
-import { mergeAudioBlobs } from './utils/audioMixer';
 
 export default function App() {
   // --- UI Translation State ---
@@ -117,10 +124,11 @@ export default function App() {
     isSessionsReady,
     isOutputOnly,
     setIsOutputOnly,
-    handleNewConversation,
     handleMergeWithAbove,
     handleMergeWithBelow,
     handleSplitItem,
+    handleSaveEdit,
+    handleClearSessions,
     loadSession,
     deleteSession
   } = useConversationHistory();
@@ -129,15 +137,16 @@ export default function App() {
   const [settings, setSettings] = useState<AppSettings>(() => {
     try {
       const raw = localStorage.getItem(SETTINGS_KEY);
-      if (!raw) return { driveBackupMode: 'manual', audioCacheEnabled: true, recordOriginalEnabled: true };
+      if (!raw) return { driveBackupMode: 'manual', audioCacheEnabled: true, recordOriginalEnabled: true, userApiKey: '' };
       const parsed = JSON.parse(raw) as Partial<AppSettings>;
       return {
         driveBackupMode: parsed.driveBackupMode === 'auto' ? 'auto' : 'manual',
         audioCacheEnabled: typeof parsed.audioCacheEnabled === 'boolean' ? parsed.audioCacheEnabled : true,
         recordOriginalEnabled: typeof parsed.recordOriginalEnabled === 'boolean' ? parsed.recordOriginalEnabled : true,
+        userApiKey: typeof parsed.userApiKey === 'string' ? parsed.userApiKey : '',
       };
     } catch {
-      return { driveBackupMode: 'manual', audioCacheEnabled: true, recordOriginalEnabled: true };
+      return { driveBackupMode: 'manual', audioCacheEnabled: true, recordOriginalEnabled: true, userApiKey: '' };
     }
   });
 
@@ -149,38 +158,17 @@ export default function App() {
   // --- Translation Helpers ---
   const t = TRANSLATIONS[uiLangCode] || TRANSLATIONS['ko'];
 
-  const postApi = useCallback(async <T,>(endpoint: string, body: any): Promise<T> => {
-    const resp = await fetch(`/api/${endpoint}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    if (!resp.ok) throw new Error(`API Error: ${resp.statusText}`);
-    return resp.json();
-  }, []);
-
-  const translateText = async (text: string, id: string, fromLang: Language, toLang: Language) => {
-    try {
-      const data = await postApi<{ translated: string }>('translate', {
-        text,
-        from: fromLang.name,
-        to: toLang.name,
-        model: MODEL_TRANSLATE,
-      });
-      const translated = data.translated?.trim() || "";
-      setHistory(prev => prev.map(item =>
-        item.id === id ? { ...item, translated: translated, isTranslating: false } : item
-      ));
-      if (isAutoPlay && translated) {
-        playTTS(translated, id);
-      }
-    } catch (e) {
-      console.error("Translation failed", e);
-      setHistory(prev => prev.map(item =>
-        item.id === id ? { ...item, translated: "Error", isTranslating: false } : item
-      ));
-    }
-  };
+  // --- Custom Service: Translation & API ---
+  const {
+    postApi,
+    translateText
+  } = useTranslationService({
+    settings,
+    setHistory,
+    isAutoPlay,
+    playTTS: (text, id) => playTTS(text, id),
+    MODEL_TRANSLATE
+  });
 
   // Gemini Props Helpers
   const onTranscriptReceived = useCallback((text: string, isFinal: boolean) => {
@@ -223,6 +211,22 @@ export default function App() {
     settings
   });
 
+  // --- Custom Service: Audio & TTS ---
+  const {
+    playTTS,
+    playAll,
+    handleDownloadSessionAudio
+  } = useAudioPlayer({
+    history,
+    setHistory,
+    selectedVoice,
+    settings,
+    postApi,
+    playPCM,
+    MODEL_TTS,
+    t
+  });
+
   const {
     isExportMenuOpen,
     setIsExportMenuOpen,
@@ -244,11 +248,39 @@ export default function App() {
     setIsLoginModalOpen
   });
 
-  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  // --- Custom Service: Vision & Storage ---
+  const {
+    visionNotifications,
+    setVisionNotifications,
+    activeVisionNotificationId,
+    setActiveVisionNotificationId,
+    visionToastIds,
+    handleVisionCaptured,
+    openVisionNotification,
+    dismissVisionToast
+  } = useVision({ postApi, langInput, langOutput, MODEL_VISION });
+
+  const {
+    driveSessions,
+    isLoadingDriveSessions,
+    selectedDriveSessionId,
+    setSelectedDriveSessionId,
+    isRestoringDriveSession,
+    driveRestoreMessage,
+    setDriveRestoreMessage,
+    isHistoryModalOpen,
+    setIsHistoryModalOpen,
+    selectedLocalSessionId,
+    setSelectedLocalSessionId,
+    handleOpenHistory,
+    handleRestoreFromDrive
+  } = useStorage({ accessToken, setHistory, setCurrentSessionId });
+
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isNotificationMenuOpen, setIsNotificationMenuOpen] = useState(false);
-  const [visionNotifications, setVisionNotifications] = useState<VisionNotification[]>([]);
-  const [activeVisionNotificationId, setActiveVisionNotificationId] = useState<string | null>(null);
+  const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
+  const [isSummarizing, setIsSummarizing] = useState(false);
+  const [summaryText, setSummaryText] = useState('');
 
   const [currentTurnText, setCurrentTurnText] = useState('');
   const historyRef = useRef<HTMLDivElement>(null);
@@ -257,10 +289,21 @@ export default function App() {
   const langOutputRef = useRef(langOutput);
   const isLangAutoRef = useRef(false);
 
-  // --- Phase 2 State ---
+  // --- Editing State ---
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editOriginalText, setEditOriginalText] = useState('');
   const [editTranslatedText, setEditTranslatedText] = useState('');
+
+  const startEditing = useCallback((item: ConversationItem) => {
+    setEditingItemId(item.id);
+    setEditOriginalText(item.original);
+    setEditTranslatedText(item.translated);
+  }, []);
+
+  const handleSaveEditAction = useCallback((id: string) => {
+    handleSaveEdit(id, editOriginalText, editTranslatedText);
+    setEditingItemId(null);
+  }, [editOriginalText, editTranslatedText, handleSaveEdit]);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text).then(() => {
@@ -269,39 +312,64 @@ export default function App() {
     });
   };
 
-  const handleDownloadSessionAudio = async (sessionItems: ConversationItem[], sessionTitle: string) => {
-    try {
-      const audioItems = sessionItems.filter(item => item.audioBase64);
-      if (audioItems.length === 0) {
-        alert(t.noAudioToExport || "재생 가능한 오디오가 없습니다.");
-        return;
-      }
-
-      const blobs = audioItems.map(item => {
-        const bytes = base64ToUint8Array(item.audioBase64!);
-        return new Blob([bytes.buffer as any], { type: 'audio/wav' });
-      });
-
-      const mergedBlob = await mergeAudioBlobs(blobs);
-      const url = URL.createObjectURL(mergedBlob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${sessionTitle || 'session'}_audio.wav`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (e) {
-      console.error("Audio export failed", e);
-      alert("Audio export failed");
-    }
-  };
-
   // const exportMenuRef = useRef<HTMLDivElement>(null); // Moved to useExport
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const notificationMenuRef = useRef<HTMLDivElement>(null);
 
   const unreadVisionCount = visionNotifications.filter((n) => !n.isRead).length;
+
+  const handleLoadMoreHistory = () => {
+    const nextLimit = Math.min(historyRenderLimit + HISTORY_RENDER_STEP, history.length);
+    if (nextLimit === historyRenderLimit) return;
+    if (historyRef.current) {
+      pendingHistoryExpandRef.current = {
+        prevScrollHeight: historyRef.current.scrollHeight,
+        prevScrollTop: historyRef.current.scrollTop,
+      };
+    }
+    setHistoryRenderLimit(nextLimit);
+  };
+
+  const handleSummarize = async () => {
+    if (history.length < 2) {
+      alert("대화 내용이 너무 적어 요약할 수 없습니다.");
+      return;
+    }
+    setIsSummaryModalOpen(true);
+    setIsSummarizing(true);
+    try {
+      const historyText = history.map(h => `${h.original}\n${h.translated}`).join('\n\n');
+      const data = await postApi<{ summary: string }>('summarize', {
+        history: historyText,
+        lang: uiLangCode
+      });
+      setSummaryText(data.summary);
+    } catch (e) {
+      console.error(e);
+      setSummaryText("요약에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+    } finally {
+      setIsSummarizing(false);
+    }
+  };
+
+  const handleOpenSettingsAction = () => {
+    setIsProfileMenuOpen(false);
+    setIsSettingsModalOpen(true);
+  };
+
+  const handleClearLocalSessionsAction = () => {
+    clearCachedAudio();
+    handleClearSessions();
+  };
+
+  const handleLoadSessionFromLocal = () => {
+    if (!selectedLocalSessionId) return;
+    const target = sessions.find(s => s.id === selectedLocalSessionId);
+    if (target) {
+      loadSession(target);
+      setIsHistoryModalOpen(false);
+    }
+  };
 
   useEffect(() => {
     langInputRef.current = langInput;
@@ -326,7 +394,7 @@ export default function App() {
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [setIsProfileMenuOpen]);
+  }, [setIsProfileMenuOpen, setIsExportMenuOpen, setIsNotificationMenuOpen, exportMenuRef, profileMenuRef, notificationMenuRef]);
 
   useEffect(() => {
     try {
@@ -340,283 +408,9 @@ export default function App() {
     }
   }, [isAdmin]);
 
-
-  // --- Logic ---
-  const visibleHistory =
-    historyRenderLimit >= history.length
-      ? history
-      : history.slice(Math.max(0, history.length - historyRenderLimit));
-  const hiddenHistoryCount = Math.max(0, history.length - visibleHistory.length);
-
-  const handleLoadMoreHistory = () => {
-    const nextLimit = Math.min(historyRenderLimit + HISTORY_RENDER_STEP, history.length);
-    if (nextLimit === historyRenderLimit) return;
-
-    if (historyRef.current) {
-      pendingHistoryExpandRef.current = {
-        prevScrollHeight: historyRef.current.scrollHeight,
-        prevScrollTop: historyRef.current.scrollTop,
-      };
-    }
-
-    setHistoryRenderLimit(nextLimit);
-  };
-
   useEffect(() => {
     setHistoryRenderLimit(200);
   }, [currentSessionId, setHistoryRenderLimit]);
-
-  const openSettings = () => {
-    setIsProfileMenuOpen(false);
-    setIsSettingsModalOpen(true);
-  };
-
-  // Export logic moved to useExport.ts
-
-
-  const splitTextForTts = (text: string, maxLen: number): string[] => {
-    const normalized = String(text || '').replace(/\s+/g, ' ').trim();
-    if (!normalized || normalized.length <= maxLen) return normalized ? [normalized] : [];
-    const separators = new Set(['.', '!', '?', '。', '！', '？', '\n']);
-    const sentences: string[] = [];
-    let current = '';
-    for (let i = 0; i < normalized.length; i++) {
-      const ch = normalized[i];
-      current += ch;
-      if (separators.has(ch)) {
-        const s = current.trim();
-        if (s) sentences.push(s);
-        current = '';
-      }
-    }
-    if (current.trim()) sentences.push(current.trim());
-    const chunks: string[] = [];
-    let buf = '';
-    for (const s of sentences) {
-      if (!buf) {
-        if (s.length <= maxLen) buf = s;
-        else {
-          for (let i = 0; i < s.length; i += maxLen) {
-            const part = s.slice(i, i + maxLen).trim();
-            if (part) chunks.push(part);
-          }
-        }
-        continue;
-      }
-      const next = `${buf} ${s}`;
-      if (next.length <= maxLen) buf = next;
-      else {
-        chunks.push(buf);
-        if (s.length <= maxLen) buf = s;
-        else {
-          for (let i = 0; i < s.length; i += maxLen) {
-            const part = s.slice(i, i + maxLen).trim();
-            if (part) chunks.push(part);
-          }
-          buf = '';
-        }
-      }
-    }
-    if (buf) chunks.push(buf);
-    return chunks;
-  };
-
-  const playTTS = async (text: string, id?: string, notifyOnErrorValue: boolean = false): Promise<void> => {
-    const normalized = String(text || '').trim();
-    if (!normalized) return;
-    const cacheKey = id ? `${id}:${selectedVoice.name}:${MODEL_TTS}` : null;
-    if (id) {
-      const item = history.find(i => i.id === id);
-      if (item?.audioBase64) return playPCM(item.audioBase64);
-    }
-    if (id && cacheKey && settings.audioCacheEnabled) {
-      const cached = await getCachedAudioBase64(cacheKey);
-      if (cached) {
-        setHistory(prev => prev.map(item => item.id === id ? { ...item, audioBase64: cached } : item));
-        return playPCM(cached);
-      }
-    }
-    const chunks = splitTextForTts(normalized, 200);
-    try {
-      const pcmChunks: Uint8Array[] = [];
-      for (const chunk of chunks) {
-        const data = await postApi<{ audioBase64: string }>('tts', {
-          text: chunk,
-          voiceName: selectedVoice.name,
-          model: MODEL_TTS,
-        });
-        if (data.audioBase64) {
-          pcmChunks.push(base64ToUint8Array(data.audioBase64));
-          await playPCM(data.audioBase64);
-        }
-      }
-      if (id && pcmChunks.length > 0) {
-        const totalLen = pcmChunks.reduce((sum, x) => sum + x.byteLength, 0);
-        const merged = new Uint8Array(totalLen);
-        let offset = 0;
-        for (const x of pcmChunks) { merged.set(x, offset); offset += x.byteLength; }
-        const mergedBase64 = arrayBufferToBase64(merged.buffer);
-        setHistory(prev => prev.map(item => item.id === id ? { ...item, audioBase64: mergedBase64 } : item));
-        if (cacheKey && settings.audioCacheEnabled) await setCachedAudioBase64(cacheKey, mergedBase64);
-      }
-    } catch (e) {
-      console.error("TTS failed", e);
-      if (notifyOnErrorValue) alert(`TTS 실패: ${e instanceof Error ? e.message : String(e)}`);
-    }
-  };
-
-  const playAll = async () => {
-    for (const item of history) {
-      if (item.translated) {
-        await playTTS(item.translated, item.id);
-        await new Promise(r => setTimeout(r, 500));
-      }
-    }
-  };
-
-  const startEditing = useCallback((item: ConversationItem) => {
-    setEditingItemId(item.id);
-    setEditOriginalText(item.original);
-    setEditTranslatedText(item.translated);
-  }, []);
-
-  const handleSaveEdit = useCallback((id: string) => {
-    setHistory(prev => prev.map(item => item.id === id ? {
-      ...item, original: editOriginalText, translated: editTranslatedText, updatedAt: Date.now()
-    } : item));
-    setEditingItemId(null);
-  }, [editOriginalText, editTranslatedText, setHistory]);
-
-  const [visionToastIds, setVisionToastIds] = useState<string[]>([]);
-  const toastTimeoutsRef = useRef<Record<string, number>>({});
-
-  const enqueueVisionToast = (id: string) => {
-    setVisionToastIds(prev => [id, ...prev].slice(0, 3));
-    if (toastTimeoutsRef.current[id]) window.clearTimeout(toastTimeoutsRef.current[id]);
-    toastTimeoutsRef.current[id] = window.setTimeout(() => {
-      setVisionToastIds(prev => prev.filter(x => x !== id));
-      delete toastTimeoutsRef.current[id];
-    }, 7000);
-  };
-
-  const dismissVisionToast = (id: string) => {
-    setVisionToastIds(prev => prev.filter(x => x !== id));
-    if (toastTimeoutsRef.current[id]) {
-      window.clearTimeout(toastTimeoutsRef.current[id]);
-      delete toastTimeoutsRef.current[id];
-    }
-  };
-
-  const openVisionNotification = (id: string) => {
-    setActiveVisionNotificationId(id);
-    setIsNotificationMenuOpen(false);
-    setVisionNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
-    dismissVisionToast(id);
-  };
-
-  const handleVisionCaptured = async (payload: { blob: Blob }) => {
-    const id = `vision_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-    const langA = langInputRef.current.code;
-    const langB = langOutputRef.current.code;
-    const item: VisionNotification = { id, timestamp: Date.now(), status: 'processing', isRead: false };
-    setVisionNotifications(prev => [item, ...prev]);
-    try {
-      const base64Image = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve((reader.result as string).split(',')[1] || '');
-        reader.onerror = reject;
-        reader.readAsDataURL(payload.blob);
-      });
-      const result = await postApi<VisionResult>('vision', { base64Image, langA, langB, model: MODEL_VISION });
-      setVisionNotifications(prev => prev.map(n => n.id === id ? { ...n, status: 'done', result } : n));
-      enqueueVisionToast(id);
-    } catch (e) {
-      setVisionNotifications(prev => prev.map(n => n.id === id ? { ...n, status: 'error', error: String(e) } : n));
-      enqueueVisionToast(id);
-    }
-  };
-
-  const handleOpenHistory = async () => {
-    setDriveRestoreMessage('');
-    setSelectedDriveSessionId('');
-    if (accessToken) {
-      setIsLoadingDriveSessions(true);
-      try {
-        const list = await listDriveSessions(accessToken, 20);
-        setDriveSessions(list || []);
-      } catch (e) {
-        console.error(e);
-        setDriveSessions([]);
-      } finally {
-        setIsLoadingDriveSessions(false);
-      }
-    } else {
-      setDriveSessions([]);
-    }
-    setIsHistoryModalOpen(true);
-  };
-
-  const [driveSessions, setDriveSessions] = useState<any[]>([]);
-  const [isLoadingDriveSessions, setIsLoadingDriveSessions] = useState(false);
-  const [selectedDriveSessionId, setSelectedDriveSessionId] = useState('');
-  const [isRestoringDriveSession, setIsRestoringDriveSession] = useState(false);
-  const [driveRestoreMessage, setDriveRestoreMessage] = useState('');
-
-  const handleRestoreFromDrive = async (includeAudio: boolean) => {
-    if (!accessToken || !selectedDriveSessionId) return;
-    setIsRestoringDriveSession(true);
-    setDriveRestoreMessage('복원 중...');
-    try {
-      const result = await restoreDriveSession(accessToken, selectedDriveSessionId, includeAudio);
-      if (result?.history) {
-        const now = Date.now();
-        const newId = `drive_${now}`;
-        setSessions(prev => [{
-          id: newId, createdAt: now, updatedAt: now, items: result.history!,
-          title: result.sessionName || result.history![0]?.original?.slice(0, 24) || 'Drive 세션'
-        }, ...prev]);
-        setCurrentSessionId(newId);
-        setHistory(result.history);
-      }
-      setDriveRestoreMessage('복원을 완료했습니다.');
-      setIsHistoryModalOpen(false);
-    } catch (e) {
-      console.error(e);
-      setDriveRestoreMessage('복원에 실패했습니다.');
-    } finally {
-      setIsRestoringDriveSession(false);
-    }
-  };
-
-  const [selectedLocalSessionId, setSelectedLocalSessionId] = useState('');
-
-  const handleLoadSessionFromLocal = () => {
-    if (!selectedLocalSessionId) return;
-    const target = sessions.find(s => s.id === selectedLocalSessionId);
-    if (target) {
-      setCurrentSessionId(target.id);
-      setHistory([...(target.items || [])]);
-      setIsHistoryModalOpen(false);
-    }
-  };
-
-  const handleClearLocalSessions = () => {
-    clearSessions();
-    setSelectedLocalSessionId('');
-    clearCachedAudio();
-
-    const now = Date.now();
-    const initial: ConversationSession = {
-      id: `local_${now}`,
-      createdAt: now,
-      updatedAt: now,
-      items: [],
-      title: '새 대화',
-    };
-    setSessions([initial]);
-    setCurrentSessionId(initial.id);
-    setHistory([]);
-  };
 
   useEffect(() => {
     if (!isScrollLocked && historyRef.current) {
@@ -652,93 +446,24 @@ export default function App() {
         uiLangCode={uiLangCode}
         setUiLangCode={setUiLangCode}
         setIsExportMenuOpen={setIsExportMenuOpen}
+        handleSummarize={handleSummarize}
         t={t}
       />
 
-      {/* --- EXPORT MENU (Popover) --- */}
-      {isExportMenuOpen && (
-        <div
-          ref={exportMenuRef}
-          className="fixed top-28 right-6 w-64 bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-100 py-3 z-[100] animate-in fade-in slide-in-from-top-4 duration-200"
-        >
-          <div className="px-4 py-2 border-b border-gray-50 mb-1">
-            <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest">{t.exportMenu}</h3>
-          </div>
-          <button
-            onClick={() => handleExport('docs')}
-            className="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-3 transition-colors"
-          >
-            <DocsIcon />
-            <span className="text-sm font-bold text-gray-700">{t.exportDocs}</span>
-          </button>
-          <button
-            onClick={() => handleExport('drive')}
-            className="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-3 transition-colors"
-          >
-            <DriveIcon />
-            <span className="text-sm font-bold text-gray-700">{t.exportDrive}</span>
-          </button>
-          <button
-            onClick={() => handleExport('classroom')}
-            className="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-3 transition-colors"
-          >
-            <ClassroomIcon />
-            <span className="text-sm font-bold text-gray-700">{t.exportClassroom}</span>
-          </button>
-          <button
-            onClick={() => handleExport('notebooklm')}
-            className="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-3 transition-colors border-t border-gray-50 mt-1"
-          >
-            <NotebookLMIcon />
-            <span className="text-sm font-bold text-gray-700">{t.exportNotebookLM}</span>
-          </button>
-        </div>
-      )}
+      <ExportMenu
+        isOpen={isExportMenuOpen}
+        menuRef={exportMenuRef}
+        onExport={handleExport}
+        t={t}
+      />
 
-      {visionToastIds.length > 0 && (
-        <div className="fixed top-20 right-4 z-[60] flex flex-col gap-2 w-[320px] max-w-[calc(100vw-2rem)]">
-          {visionToastIds.map((id) => {
-            const n = visionNotifications.find((x) => x.id === id);
-            if (!n) return null;
-            const title = t.visionTitle;
-            const originalText = (n.result?.originalText || '').trim();
-            const translatedText = (n.result?.translatedText || '').trim();
-            const message =
-              n.status === 'done'
-                ? (translatedText || originalText || t.visionNoText)
-                : n.status === 'error'
-                  ? (n.error || t.visionFail)
-                  : t.visionAnalyzing;
-
-            const statusClass =
-              n.status === 'done'
-                ? 'text-emerald-700'
-                : n.status === 'error'
-                  ? 'text-red-700'
-                  : 'text-gray-600';
-
-            return (
-              <div key={id} className="bg-white border border-gray-200 shadow-lg rounded-xl p-3">
-                <div className="flex items-start justify-between gap-2">
-                  <button onClick={() => openVisionNotification(id)} className="flex-1 text-left">
-                    <div className="text-xs font-bold text-gray-800">{title}</div>
-                    <div className={`text-[11px] mt-1 whitespace-pre-wrap break-words line-clamp-3 ${statusClass}`}>{String(message).trim().slice(0, 160)}</div>
-                  </button>
-                  <button
-                    onClick={() => dismissVisionToast(id)}
-                    className="text-gray-400 hover:text-gray-600 p-1"
-                    aria-label="닫기"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      <VisionToastSystem
+        toastIds={visionToastIds}
+        notifications={visionNotifications}
+        onOpen={openVisionNotification}
+        onDismiss={dismissVisionToast}
+        t={t}
+      />
 
       <LanguageSelector
         langInput={langInput}
@@ -767,13 +492,13 @@ export default function App() {
         setEditOriginalText={setEditOriginalText}
         editTranslatedText={editTranslatedText}
         setEditTranslatedText={setEditTranslatedText}
-        handleSaveEdit={handleSaveEdit}
+        startEditing={startEditing}
+        handleSaveEdit={handleSaveEditAction}
         handleMergeWithAbove={handleMergeWithAbove}
         handleMergeWithBelow={handleMergeWithBelow}
         handleSplitItem={handleSplitItem}
         copyToClipboard={copyToClipboard}
         playTTS={playTTS}
-        startEditing={startEditing}
       />
 
       <BottomControls
@@ -803,6 +528,14 @@ export default function App() {
       />
 
       {/* --- LOGIN MODAL --- */}
+      <SummaryModal
+        isOpen={isSummaryModalOpen}
+        onClose={() => setIsSummaryModalOpen(false)}
+        summaryText={summaryText}
+        isSummarizing={isSummarizing}
+        t={t}
+      />
+
       <LoginModal
         isOpen={isLoginModalOpen}
         onClose={() => setIsLoginModalOpen(false)}
@@ -834,7 +567,7 @@ export default function App() {
         selectedLocalSessionId={selectedLocalSessionId}
         setSelectedLocalSessionId={setSelectedLocalSessionId}
         handleLoadSessionFromLocal={handleLoadSessionFromLocal}
-        handleClearLocalSessions={handleClearLocalSessions}
+        handleClearLocalSessions={handleClearLocalSessionsAction}
         handleDownloadSessionAudio={(s) => handleDownloadSessionAudio(s.items, s.title)}
       />
 

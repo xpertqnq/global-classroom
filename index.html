@@ -7,6 +7,12 @@
   <title>Global Classroom</title>
   <meta name="google" content="notranslate" />
   <meta name="microsoft" content="notranslate" />
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#4f46e5" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Global Class" />
+  <link rel="apple-touch-icon" href="/logo192.png" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
@@ -25,6 +31,13 @@
 <body class="bg-gray-50 text-gray-900 overflow-hidden select-none">
   <div id="root" class="h-screen w-screen relative"></div>
   <script type="module" src="/index.tsx"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW registration failed:', err));
+      });
+    }
+  </script>
 </body>
 
 </html>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { GoogleLogo, GlobeIcon, ExportIcon } from './Icons';
+import { GoogleLogo, ExportIcon, SparklesIcon } from './Icons';
 import { VoiceOption, TranslationMap } from '../types';
 import { VOICE_OPTIONS } from '../constants';
 
@@ -21,6 +21,7 @@ interface AppHeaderProps {
     uiLangCode: string;
     setUiLangCode: (v: string) => void;
     setIsExportMenuOpen: (v: boolean) => void;
+    handleSummarize: () => void;
     t: TranslationMap;
 }
 
@@ -42,6 +43,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
     uiLangCode,
     setUiLangCode,
     setIsExportMenuOpen,
+    handleSummarize,
     t,
 }) => {
     return (
@@ -166,6 +168,13 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                 </div>
 
                 <div className="flex items-center gap-1.5">
+                    <button
+                        onClick={handleSummarize}
+                        className="p-1.5 bg-indigo-50 rounded-full border border-indigo-100 text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all active:scale-90 shrink-0 shadow-sm"
+                        title="AI 요약"
+                    >
+                        <SparklesIcon />
+                    </button>
                     <button
                         onClick={() => setIsExportMenuOpen(true)}
                         className="p-1.5 bg-gray-50 rounded-full border border-gray-100 text-gray-400 hover:bg-indigo-600 hover:text-white transition-all active:scale-90 shrink-0"

@@ -72,7 +72,7 @@ const ConversationList: React.FC<ConversationListProps> = ({
             {/* Scrollable Content */}
             <div
                 ref={historyRef}
-                className="flex-1 overflow-y-auto p-4 pb-52 md:pb-24 z-10 relative scroll-smooth"
+                className="flex-1 overflow-y-auto p-4 pb-40 md:pb-24 z-10 relative scroll-smooth"
             >
                 {history.length === 0 && !currentTurnText && (
                     <div className="h-full flex flex-col items-center justify-start text-gray-400 text-center px-4 opacity-70 overflow-y-auto py-0">
@@ -358,7 +358,7 @@ const ConversationList: React.FC<ConversationListProps> = ({
                     )}
                 </div>
 
-                <div className="h-52"></div> {/* Spacer for bottom bar */}
+                <div className="h-40"></div> {/* Spacer for bottom bar */}
             </div>
         </div>
     );

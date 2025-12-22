@@ -236,6 +236,14 @@ export function useGeminiLive({ langInput, onTranscriptReceived, onAudioReceived
                     onmessage: async (msg: any) => {
                         console.log('[DEBUG] Gemini onmessage received:', JSON.stringify(msg).slice(0, 500));
                         if (!isCurrentAttempt()) return;
+
+                        // inputTranscription 처리 (실시간 전사)
+                        if (msg.serverContent?.inputTranscription?.text) {
+                            const text = msg.serverContent.inputTranscription.text;
+                            // isFinal은 turnComplete에서 처리
+                            onTranscriptReceived(text, false);
+                        }
+
                         if (msg.serverContent?.modelTurn?.parts) {
                             for (const part of msg.serverContent.modelTurn.parts) {
                                 if (part.inlineData) {
@@ -248,7 +256,8 @@ export function useGeminiLive({ langInput, onTranscriptReceived, onAudioReceived
                             // Handle interruption if needed
                         }
                         if (msg.serverContent?.turnComplete) {
-                            // Handle turn complete if needed
+                            // 턴이 완료되면 최종 전사로 처리
+                            // (현재 턴 텍스트를 최종 확정)
                         }
                     },
                     ontranscript: (t: any) => {

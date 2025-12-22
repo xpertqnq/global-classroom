@@ -82,7 +82,7 @@ const ConversationList: React.FC<ConversationListProps> = ({
                             </span>
                             <button
                                 onClick={toggleMic}
-                                className={`w-16 h-16 rounded-full flex items-center justify-center shadow-2xl transition-all transform hover:scale-110 active:scale-95 ring-4 ring-indigo-50/50 ${status === ConnectionStatus.CONNECTED ? 'bg-red-500' : 'bg-gradient-to-br from-indigo-500 to-indigo-700'} text-white`}
+                                className={`w-16 h-16 rounded-full flex items-center justify-center shadow-2xl transition-all transform hover:scale-115 active:scale-95 ring-4 ring-indigo-50/50 cursor-pointer ${status === ConnectionStatus.CONNECTED ? 'bg-red-500' : 'bg-gradient-to-br from-indigo-500 to-indigo-700'} text-white`}
                                 title={status === ConnectionStatus.CONNECTED ? (uiLangCode === 'ko' ? '마이크 끄기' : 'Turn off mic') : (uiLangCode === 'ko' ? '마이크 켜기' : 'Turn on mic')}
                             >
                                 <div className="scale-75">

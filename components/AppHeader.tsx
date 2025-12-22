@@ -54,10 +54,10 @@ const AppHeader: React.FC<AppHeaderProps> = ({
         <header className="bg-white/80 backdrop-blur-md px-3 py-1.5 shadow-sm z-40 border-b border-gray-100 shrink-0">
             <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-xl flex items-center justify-center shadow-indigo-200 shadow-lg transform -rotate-3 hover:rotate-0 transition-transform cursor-pointer" title="Global Class Home">
+                    <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-xl flex items-center justify-center shadow-indigo-200 shadow-lg transform -rotate-3 hover:rotate-0 hover:shadow-lg hover:scale-105 transition-all cursor-pointer" title="Global Class Home">
                         <GoogleLogo />
                     </div>
-                    <div className="min-w-0" title="실시간 AI 통역 서비스">
+                    <div className="min-w-0 cursor-pointer hover:opacity-80 transition-opacity" title="실시간 AI 통역 서비스">
                         <h1 className="text-lg font-black text-gray-900 tracking-tight leading-none uppercase italic">{t.appTitle}</h1>
                         <p className="text-[10px] text-gray-400 font-bold tracking-widest mt-0.5">{t.subtitle}</p>
                     </div>
@@ -170,7 +170,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
 
             <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
                 <div
-                    className="flex items-center bg-gray-50 rounded-full px-2 py-1 border border-gray-100 hover:border-indigo-200 transition-all group shrink-0"
+                    className="flex items-center bg-gray-50 rounded-full px-2 py-1 border border-gray-100 hover:border-indigo-200 hover:bg-indigo-50 transition-all group shrink-0 cursor-pointer"
                     title={uiLangCode === 'ko' ? '음성 목소리 선택' : 'Select TTS voice'}
                 >
                     <span className="text-[9px] text-gray-400 font-bold mr-1 uppercase tracking-tighter">{uiLangCode === 'ko' ? '목소리' : 'Voice'}</span>
@@ -180,7 +180,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                             const v = VOICE_OPTIONS.find(v => v.name === e.target.value);
                             if (v) setSelectedVoice(v);
                         }}
-                        className="bg-transparent text-[11px] font-black text-indigo-600 outline-none cursor-pointer w-[60px]"
+                        className="bg-transparent text-[11px] font-black text-indigo-600 outline-none cursor-pointer w-[60px] hover:text-indigo-700"
                     >
                         {VOICE_OPTIONS.map(v => (
                             <option key={v.name} value={v.name}>{v.label}</option>
@@ -191,21 +191,21 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                 <div className="flex items-center gap-1.5">
                     <button
                         onClick={handleSummarize}
-                        className="p-1.5 bg-indigo-50 rounded-full border border-indigo-100 text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all active:scale-90 shrink-0 shadow-sm"
+                        className="p-1.5 bg-indigo-50 rounded-full border border-indigo-100 text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all active:scale-90 shrink-0 shadow-sm cursor-pointer"
                         title={uiLangCode === 'ko' ? 'AI 요약 및 키워드 추출' : 'AI Summary & Keywords'}
                     >
                         <SparklesIcon />
                     </button>
                     <button
                         onClick={() => setIsExportMenuOpen(true)}
-                        className="p-1.5 bg-gray-50 rounded-full border border-gray-100 text-gray-400 hover:bg-indigo-600 hover:text-white transition-all active:scale-90 shrink-0"
+                        className="p-1.5 bg-gray-50 rounded-full border border-gray-100 text-gray-400 hover:bg-indigo-600 hover:text-white transition-all active:scale-90 shrink-0 cursor-pointer"
                         title={uiLangCode === 'ko' ? '내보내기 (Docs, Drive, Classroom)' : 'Export Options'}
                     >
                         <ExportIcon />
                     </button>
                     <button
                         onClick={() => setIsOutputOnly(!isOutputOnly)}
-                        className={`p-1.5 rounded-full border transition-all active:scale-90 shadow-sm shrink-0 flex items-center justify-center ${isOutputOnly
+                        className={`p-1.5 rounded-full border transition-all active:scale-90 shadow-sm shrink-0 flex items-center justify-center cursor-pointer ${isOutputOnly
                             ? 'bg-indigo-600 border-indigo-700 text-white'
                             : 'bg-white border-gray-100 text-gray-400 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-100'
                             }`}
@@ -216,7 +216,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
 
                     <button
                         onClick={() => setIsLiveModalOpen(true)}
-                        className={`p-1.5 rounded-full border transition-all active:scale-90 shrink-0 shadow-sm flex items-center justify-center h-8 w-8 ${roomStatus === 'idle'
+                        className={`p-1.5 rounded-full border transition-all active:scale-90 shrink-0 shadow-sm flex items-center justify-center h-8 w-8 cursor-pointer ${roomStatus === 'idle'
                             ? 'bg-white border-gray-100 text-gray-400 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-100'
                             : 'bg-emerald-600 border-emerald-700 text-white animate-pulse'
                             }`}

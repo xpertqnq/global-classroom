@@ -40,7 +40,7 @@ const BottomControls: React.FC<BottomControlsProps> = ({
             <div className="flex flex-1 justify-around items-center">
                 <button
                     onClick={() => setIsAutoPlay(!isAutoPlay)}
-                    className={`flex flex-col items-center gap-1 transition-all active:scale-90 w-16 group ${isAutoPlay ? 'text-indigo-600' : 'text-gray-400'
+                    className={`flex flex-col items-center gap-1 transition-all active:scale-90 hover:scale-105 w-16 group cursor-pointer ${isAutoPlay ? 'text-indigo-600' : 'text-gray-400'
                         }`}
                     title={isAutoPlay ? (uiLangCode === 'ko' ? '자동 읽기 끄기' : 'Turn off auto-play') : (uiLangCode === 'ko' ? '자동 읽기 켜기' : 'Turn on auto-play')}
                 >
@@ -52,7 +52,7 @@ const BottomControls: React.FC<BottomControlsProps> = ({
 
                 <button
                     onClick={() => setIsScrollLocked(!isScrollLocked)}
-                    className={`flex flex-col items-center gap-1 transition-all active:scale-90 w-16 group ${!isScrollLocked ? 'text-indigo-600' : 'text-gray-400'
+                    className={`flex flex-col items-center gap-1 transition-all active:scale-90 hover:scale-105 w-16 group cursor-pointer ${!isScrollLocked ? 'text-indigo-600' : 'text-gray-400'
                         }`}
                     title={isScrollLocked ? (uiLangCode === 'ko' ? '자동 스크롤 켜기' : 'Enable auto-scroll') : (uiLangCode === 'ko' ? '자동 스크롤 끄기' : 'Disable auto-scroll')}
                 >
@@ -75,7 +75,7 @@ const BottomControls: React.FC<BottomControlsProps> = ({
             <div className="relative -mt-10 px-4">
                 <button
                     onClick={toggleMic}
-                    className={`w-18 h-18 md:w-20 md:h-20 rounded-full flex items-center justify-center shadow-2xl border-[6px] border-white transition-all transform hover:scale-105 active:scale-90 ${status === ConnectionStatus.CONNECTED
+                    className={`w-18 h-18 md:w-20 md:h-20 rounded-full flex items-center justify-center shadow-2xl border-[6px] border-white transition-all transform hover:scale-110 active:scale-90 cursor-pointer ${status === ConnectionStatus.CONNECTED
                         ? 'bg-gradient-to-br from-red-500 to-rose-600 text-white shadow-red-200'
                         : isMicDisabled
                             ? 'bg-gray-400 text-white/50 shadow-none cursor-not-allowed opacity-60'
@@ -110,7 +110,7 @@ const BottomControls: React.FC<BottomControlsProps> = ({
             <div className="flex flex-1 justify-around items-center">
                 <button
                     onClick={playAll}
-                    className="flex flex-col items-center gap-1 text-gray-400 transition-all active:scale-90 w-14 hover:text-indigo-600 group"
+                    className="flex flex-col items-center gap-1 text-gray-400 transition-all active:scale-90 hover:scale-105 w-14 hover:text-indigo-600 group cursor-pointer"
                     title={uiLangCode === 'ko' ? '전체 음성 재생' : 'Play all history'}
                 >
                     <div className="p-2 rounded-xl group-hover:bg-indigo-50 transition-all">
@@ -121,7 +121,7 @@ const BottomControls: React.FC<BottomControlsProps> = ({
 
                 <button
                     onClick={() => setIsCameraOpen(true)}
-                    className="flex flex-col items-center gap-1 text-gray-400 transition-all active:scale-90 w-14 hover:text-emerald-600 group"
+                    className="flex flex-col items-center gap-1 text-gray-400 transition-all active:scale-90 hover:scale-105 w-14 hover:text-emerald-600 group cursor-pointer"
                     title={uiLangCode === 'ko' ? '칠판/노트 촬영 및 번역' : 'Capture & Translate notes'}
                 >
                     <div className="p-2 rounded-xl group-hover:bg-emerald-50 transition-all">

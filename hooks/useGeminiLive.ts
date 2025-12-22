@@ -197,25 +197,22 @@ export function useGeminiLive({ langInput, onTranscriptReceived, onAudioReceived
                         const processor = inputCtx.createScriptProcessor(4096, 1, 1);
                         processorRef.current = processor;
 
+
                         processor.onaudioprocess = async (e) => {
                             const session = await sessionPromise;
-                            // send / sendAudio 호환 처리 (SDK 버전에 따라 다를 수 있음)
-                            const sendFn = session && (typeof session.sendAudio === 'function' ? session.sendAudio : session.send);
-                            if (!session || typeof sendFn !== 'function') {
-                                // console.error('Gemini session is not ready or send method is unavailable');
-                                // setErrorMessage('세션이 준비되지 않았습니다. 다시 시도하세요.');
+                            // sendRealtimeInput이 Live API의 올바른 메서드
+                            if (!session || typeof session.sendRealtimeInput !== 'function') {
+                                console.error('Gemini session is not ready or sendRealtimeInput is unavailable');
                                 return;
                             }
                             if (geminiMicDesiredRef.current) {
                                 try {
                                     const inputData = e.inputBuffer.getChannelData(0);
                                     const pcm16 = float32ToInt16(inputData);
-                                    sendFn.call(session, {
-                                        realtimeInput: {
-                                            mediaChunks: [{
-                                                data: arrayBufferToBase64(pcm16.buffer),
-                                                mimeType: 'audio/pcm;rate=16000'
-                                            }]
+                                    session.sendRealtimeInput({
+                                        media: {
+                                            data: arrayBufferToBase64(pcm16.buffer),
+                                            mimeType: 'audio/pcm;rate=16000'
                                         }
                                     });
                                     if (status !== ConnectionStatus.CONNECTED && isCurrentAttempt()) {

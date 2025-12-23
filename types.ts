@@ -128,4 +128,5 @@ export interface AppSettings {
   recordOriginalEnabled: boolean;
   userApiKey?: string;
   translationModel?: string;
+  savedApiKeys?: string[]; // 로컬에만 저장하는 즐겨찾기 키 슬롯
 }

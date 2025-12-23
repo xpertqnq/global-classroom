@@ -147,16 +147,17 @@ export default function App() {
   const [settings, setSettings] = useState<AppSettings>(() => {
     try {
       const raw = localStorage.getItem(SETTINGS_KEY);
-      if (!raw) return { driveBackupMode: 'manual', audioCacheEnabled: true, recordOriginalEnabled: true, userApiKey: '' };
+      if (!raw) return { driveBackupMode: 'manual', audioCacheEnabled: true, recordOriginalEnabled: true, userApiKey: '', savedApiKeys: [] };
       const parsed = JSON.parse(raw) as Partial<AppSettings>;
       return {
         driveBackupMode: parsed.driveBackupMode === 'auto' ? 'auto' : 'manual',
         audioCacheEnabled: typeof parsed.audioCacheEnabled === 'boolean' ? parsed.audioCacheEnabled : true,
         recordOriginalEnabled: typeof parsed.recordOriginalEnabled === 'boolean' ? parsed.recordOriginalEnabled : true,
         userApiKey: typeof parsed.userApiKey === 'string' ? parsed.userApiKey : '',
+        savedApiKeys: Array.isArray(parsed.savedApiKeys) ? parsed.savedApiKeys.filter((k) => typeof k === 'string' && k.trim()) : [],
       };
     } catch {
-      return { driveBackupMode: 'manual', audioCacheEnabled: true, recordOriginalEnabled: true, userApiKey: '' };
+      return { driveBackupMode: 'manual', audioCacheEnabled: true, recordOriginalEnabled: true, userApiKey: '', savedApiKeys: [] };
     }
   });
 

@@ -103,7 +103,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                     </div>
 
                     {/* 개인 API 키 */}
-                    <div className="space-y-2 pt-4 border-t border-gray-100">
+                    <div className="space-y-3 pt-4 border-t border-gray-100">
                         <div className="flex items-center justify-between">
                             <div className="text-sm font-bold text-gray-800 flex items-center gap-2">
                                 <svg className="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -113,18 +113,69 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                             </div>
                             <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-[10px] text-indigo-600 font-bold hover:underline">키 발급받기</a>
                         </div>
-                        <input
-                            id="user-api-key"
-                            name="userApiKey"
-                            type="password"
-                            placeholder="AI Studio에서 발급받은 키 입력"
-                            value={settings.userApiKey || ''}
-                            onChange={(e) => setSettings(prev => ({ ...prev, userApiKey: e.target.value }))}
-                            className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                        />
-                        <p className="text-[10px] text-gray-400 leading-relaxed">
-                            준비된 무료 할당량이 소진될 경우, 본인의 API 키를 입력하여 계속 사용할 수 있습니다. 입력된 키는 본인의 브라우저에만 저장됩니다.
-                        </p>
+                        <div className="space-y-2">
+                            <input
+                                id="user-api-key"
+                                name="userApiKey"
+                                type="password"
+                                placeholder="AI Studio에서 발급받은 키 입력"
+                                value={settings.userApiKey || ''}
+                                onChange={(e) => setSettings(prev => ({ ...prev, userApiKey: e.target.value }))}
+                                className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                            />
+                            <p className="text-[10px] text-gray-400 leading-relaxed">
+                                준비된 무료 할당량이 소진될 경우, 본인의 API 키를 입력하여 계속 사용할 수 있습니다. 입력된 키는 본인의 브라우저에만 저장됩니다.
+                            </p>
+                        </div>
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between text-sm font-bold text-gray-800">
+                                <span>저장된 키 슬롯 (로컬)</span>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => {
+                                            const newKey = (settings.userApiKey || '').trim();
+                                            if (!newKey) return;
+                                            setSettings(prev => {
+                                                const next = prev.savedApiKeys || [];
+                                                if (next.includes(newKey)) return prev;
+                                                return { ...prev, savedApiKeys: [...next, newKey] };
+                                            });
+                                        }}
+                                        className="px-3 py-1 rounded-lg text-xs font-bold border border-indigo-200 text-indigo-600 hover:bg-indigo-50 active:scale-95 transition"
+                                    >
+                                        + 추가
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="flex gap-2">
+                                <select
+                                    className="flex-1 px-3 py-2 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                                    value=""
+                                    onChange={(e) => {
+                                        const selected = e.target.value;
+                                        if (!selected) return;
+                                        setSettings(prev => ({ ...prev, userApiKey: selected }));
+                                        e.currentTarget.value = '';
+                                    }}
+                                >
+                                    <option value="">슬롯 선택</option>
+                                    {(settings.savedApiKeys || []).map((k, idx) => (
+                                        <option key={`${k}-${idx}`} value={k}>
+                                            {`슬롯 ${idx + 1}`} - {k.slice(0, 8)}•••
+                                        </option>
+                                    ))}
+                                </select>
+                                <button
+                                    onClick={() => setSettings(prev => ({ ...prev, savedApiKeys: [] }))}
+                                    className="px-3 py-2 rounded-xl text-xs font-bold border border-gray-200 text-gray-500 hover:bg-gray-50 active:scale-95 transition"
+                                >
+                                    전체 비우기
+                                </button>
+                            </div>
+                            <p className="text-[10px] text-gray-400 leading-relaxed">
+                                키는 로컬에만 저장됩니다. 슬롯에서 선택하면 즉시 입력란으로 적용됩니다.
+                            </p>
+                        </div>
                     </div>
                 </div>
             </div>

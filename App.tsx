@@ -234,6 +234,8 @@ export default function App() {
       setHistory(prev => [...prev, newItem]);
       // Translate automatically
       translateText(text, newItem.id, langInput, langOutput);
+      // 출력만 모드에서 입력창에 이전 문장이 남지 않도록 즉시 초기화
+      setCurrentTurnText('');
 
       // Broadcast if hosting or if we are a student and allowed
       if (roomStatus === 'hosting' || (roomStatus === 'joined' && (!micRestricted || handRaiseStatus === 'approved'))) {
@@ -649,6 +651,8 @@ export default function App() {
           };
           setHistory(prev => [...prev, newItem]);
           translateText(text, newItem.id, langInput, langOutput);
+          // 출력만 모드에서도 입력창 잔류 방지
+          setCurrentTurnText('');
           // Broadcast if in live sharing
           if (roomStatus === 'hosting' || (roomStatus === 'joined' && (!micRestricted || handRaiseStatus === 'approved'))) {
             broadcastMessage(text, langInput.code);

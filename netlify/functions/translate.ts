@@ -3,7 +3,7 @@ import { GoogleGenAI } from '@google/genai';
 // 모델 우선순위 (무료 제한량 많은 순서)
 const FALLBACK_MODELS = [
   'gemini-2.5-flash-lite',  // 1순위: 1000-1500 RPD
-  'gemini-1.5-flash',       // 2순위: 1000 RPD
+  'gemini-2.0-flash',       // 2순위: GA 안정 버전
   'gemini-2.5-flash',       // 3순위: 20-25 RPD
 ];
 

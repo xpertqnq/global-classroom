@@ -127,4 +127,5 @@ export interface AppSettings {
   audioCacheEnabled: boolean;
   recordOriginalEnabled: boolean;
   userApiKey?: string;
+  translationModel?: string;
 }

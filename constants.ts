@@ -58,6 +58,15 @@ export const MODEL_TRANSLATE = 'gemini-2.5-flash';
 export const MODEL_VISION = 'gemini-2.5-flash';
 export const MODEL_TTS = 'gemini-2.5-flash-preview-tts';
 
+// 번역에 사용 가능한 모델들 (무료 제한량 많은 순서)
+export const TRANSLATION_MODELS = [
+  { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash Lite', desc: '무료 1,000+ RPD, 빠름', recommended: true },
+  { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', desc: 'GA 안정 버전', recommended: false },
+  { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', desc: '최신, 고품질', recommended: false },
+] as const;
+
+export const DEFAULT_TRANSLATION_MODEL = 'gemini-2.5-flash-lite';
+
 export const TRANSLATIONS: Record<string, TranslationMap> = {
   ko: {
     appTitle: "Global Class",

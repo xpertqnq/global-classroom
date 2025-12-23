@@ -23,6 +23,7 @@ import {
   MODEL_TRANSLATE,
   MODEL_VISION,
   MODEL_TTS,
+  DEFAULT_TRANSLATION_MODEL,
   TRANSLATIONS,
   VOICE_OPTIONS,
   GOOGLE_CLIENT_ID,
@@ -178,7 +179,7 @@ export default function App() {
     setHistory,
     isAutoPlay,
     playTTS: (text, id) => playTTS(text, id),
-    MODEL_TRANSLATE
+    MODEL_TRANSLATE: settings.translationModel || DEFAULT_TRANSLATION_MODEL
   });
 
   // --- Live Sharing ---

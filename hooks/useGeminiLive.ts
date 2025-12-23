@@ -201,9 +201,23 @@ export function useGeminiLive({ langInput, onTranscriptReceived, onAudioReceived
                         startOriginalRecording(stream);
 
                         const source = inputCtx.createMediaStreamSource(stream);
-                        const processor = inputCtx.createScriptProcessor(4096, 1, 1);
+                        // 버퍼를 줄여 초기 전송 지연 최소화
+                        const processor = inputCtx.createScriptProcessor(1024, 1, 1);
                         processorRef.current = processor;
 
+                        // 세션 예열용 무음 버퍼 전송(초기 한 조각 손실 방지)
+                        try {
+                            const warmup = new Float32Array(1600); // 100ms @16kHz
+                            const pcm16 = float32ToInt16(warmup);
+                            session.sendRealtimeInput({
+                                media: {
+                                    data: arrayBufferToBase64(pcm16.buffer),
+                                    mimeType: 'audio/pcm;rate=16000'
+                                }
+                            });
+                        } catch (e) {
+                            console.warn('warmup send failed', e);
+                        }
 
                         processor.onaudioprocess = async (e) => {
                             const session = await sessionPromise;

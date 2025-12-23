@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { AppSettings } from '../types';
 import { TRANSLATION_MODELS, DEFAULT_TRANSLATION_MODEL } from '../constants';
 
@@ -14,6 +14,18 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
     if (!isOpen) return null;
 
     const currentModel = settings.translationModel || DEFAULT_TRANSLATION_MODEL;
+    const [confirmState, setConfirmState] = useState<{
+        open: boolean;
+        title: string;
+        desc?: string;
+        onConfirm: () => void;
+    }>({ open: false, title: '', desc: '', onConfirm: () => { } });
+
+    const openConfirm = (title: string, desc: string | undefined, onConfirm: () => void) => {
+        setConfirmState({ open: true, title, desc, onConfirm });
+    };
+
+    const closeConfirm = () => setConfirmState(prev => ({ ...prev, open: false }));
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
@@ -178,8 +190,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                                                 </div>
                                                 <button
                                                     onClick={() => {
-                                                        if (!window.confirm(`${label} 키를 적용할까요?`)) return;
-                                                        setSettings(prev => ({ ...prev, userApiKey: k }));
+                                                        openConfirm(`${label} 키 적용`, '선택한 키를 입력란에 적용합니다.', () => {
+                                                            setSettings(prev => ({ ...prev, userApiKey: k }));
+                                                        });
                                                     }}
                                                     className="px-3 py-1 rounded-lg text-xs font-bold border border-indigo-200 text-indigo-600 hover:bg-indigo-50 active:scale-95 transition"
                                                 >
@@ -187,11 +200,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                                                 </button>
                                                 <button
                                                     onClick={() => {
-                                                        if (!window.confirm(`${label} 키를 삭제할까요?`)) return;
-                                                        setSettings(prev => ({
-                                                            ...prev,
-                                                            savedApiKeys: (prev.savedApiKeys || []).filter((_, i) => i !== idx)
-                                                        }));
+                                                        openConfirm(`${label} 삭제`, '이 슬롯에서 키를 삭제합니다.', () => {
+                                                            setSettings(prev => ({
+                                                                ...prev,
+                                                                savedApiKeys: (prev.savedApiKeys || []).filter((_, i) => i !== idx)
+                                                            }));
+                                                        });
                                                     }}
                                                     className="px-2 py-1 rounded-lg text-[11px] font-bold border border-red-200 text-red-500 hover:bg-red-50 active:scale-95 transition"
                                                 >
@@ -204,8 +218,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                                 {(settings.savedApiKeys || []).length > 0 && (
                                     <button
                                         onClick={() => {
-                                            if (!window.confirm('저장된 모든 키를 삭제할까요?')) return;
-                                            setSettings(prev => ({ ...prev, savedApiKeys: [] }));
+                                            openConfirm('모든 슬롯 삭제', '저장된 모든 키를 삭제합니다.', () => {
+                                                setSettings(prev => ({ ...prev, savedApiKeys: [] }));
+                                            });
                                         }}
                                         className="w-full px-3 py-2 rounded-xl text-xs font-bold border border-gray-200 text-gray-500 hover:bg-gray-50 active:scale-95 transition"
                                     >
@@ -219,6 +234,31 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                         </div>
                     </div>
                 </div>
+                {confirmState.open && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+                        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+                            <div className="text-base font-bold text-gray-900">{confirmState.title}</div>
+                            {confirmState.desc && <div className="text-sm text-gray-600">{confirmState.desc}</div>}
+                            <div className="flex gap-2 justify-end">
+                                <button
+                                    onClick={closeConfirm}
+                                    className="px-4 py-2 rounded-xl text-sm font-bold border border-gray-200 text-gray-600 hover:bg-gray-50 active:scale-95 transition"
+                                >
+                                    취소
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        confirmState.onConfirm();
+                                        closeConfirm();
+                                    }}
+                                    className="px-4 py-2 rounded-xl text-sm font-bold bg-indigo-600 text-white hover:bg-indigo-700 active:scale-95 transition"
+                                >
+                                    확인
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

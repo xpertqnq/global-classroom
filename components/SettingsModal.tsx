@@ -114,22 +114,16 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                             <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-[10px] text-indigo-600 font-bold hover:underline">키 발급받기</a>
                         </div>
                         <div className="space-y-2">
-                            <input
-                                id="user-api-key"
-                                name="userApiKey"
-                                type="password"
-                                placeholder="AI Studio에서 발급받은 키 입력"
-                                value={settings.userApiKey || ''}
-                                onChange={(e) => setSettings(prev => ({ ...prev, userApiKey: e.target.value }))}
-                                className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                            />
-                            <p className="text-[10px] text-gray-400 leading-relaxed">
-                                준비된 무료 할당량이 소진될 경우, 본인의 API 키를 입력하여 계속 사용할 수 있습니다. 입력된 키는 본인의 브라우저에만 저장됩니다.
-                            </p>
-                        </div>
-                        <div className="space-y-2">
-                            <div className="flex items-center justify-between text-sm font-bold text-gray-800">
-                                <span>저장된 키 슬롯 (로컬)</span>
+                            <div className="flex gap-2">
+                                <input
+                                    id="user-api-key"
+                                    name="userApiKey"
+                                    type="password"
+                                    placeholder="AI Studio에서 발급받은 키 입력"
+                                    value={settings.userApiKey || ''}
+                                    onChange={(e) => setSettings(prev => ({ ...prev, userApiKey: e.target.value }))}
+                                    className="flex-1 px-4 py-3 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                                />
                                 <button
                                     onClick={() => {
                                         const newKey = (settings.userApiKey || '').trim();
@@ -140,10 +134,18 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                                             return { ...prev, savedApiKeys: [...next, newKey] };
                                         });
                                     }}
-                                    className="px-3 py-1 rounded-lg text-xs font-bold border border-indigo-200 text-indigo-600 hover:bg-indigo-50 active:scale-95 transition"
+                                    className="px-3 py-3 rounded-xl text-xs font-bold border border-indigo-200 text-indigo-600 hover:bg-indigo-50 active:scale-95 transition"
                                 >
                                     현재 키 추가
                                 </button>
+                            </div>
+                            <p className="text-[10px] text-gray-400 leading-relaxed">
+                                준비된 무료 할당량이 소진될 경우, 본인의 API 키를 입력하여 계속 사용할 수 있습니다. 입력된 키는 본인의 브라우저에만 저장됩니다.
+                            </p>
+                        </div>
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between text-sm font-bold text-gray-800">
+                                <span>저장된 키 슬롯 (로컬)</span>
                             </div>
                             <div className="space-y-2">
                                 {(settings.savedApiKeys || []).length === 0 && (

@@ -130,50 +130,67 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                         <div className="space-y-2">
                             <div className="flex items-center justify-between text-sm font-bold text-gray-800">
                                 <span>저장된 키 슬롯 (로컬)</span>
-                                <div className="flex gap-2">
-                                    <button
-                                        onClick={() => {
-                                            const newKey = (settings.userApiKey || '').trim();
-                                            if (!newKey) return;
-                                            setSettings(prev => {
-                                                const next = prev.savedApiKeys || [];
-                                                if (next.includes(newKey)) return prev;
-                                                return { ...prev, savedApiKeys: [...next, newKey] };
-                                            });
-                                        }}
-                                        className="px-3 py-1 rounded-lg text-xs font-bold border border-indigo-200 text-indigo-600 hover:bg-indigo-50 active:scale-95 transition"
-                                    >
-                                        + 추가
-                                    </button>
-                                </div>
-                            </div>
-                            <div className="flex gap-2">
-                                <select
-                                    className="flex-1 px-3 py-2 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                                    value=""
-                                    onChange={(e) => {
-                                        const selected = e.target.value;
-                                        if (!selected) return;
-                                        setSettings(prev => ({ ...prev, userApiKey: selected }));
-                                        e.currentTarget.value = '';
-                                    }}
-                                >
-                                    <option value="">슬롯 선택</option>
-                                    {(settings.savedApiKeys || []).map((k, idx) => (
-                                        <option key={`${k}-${idx}`} value={k}>
-                                            {`슬롯 ${idx + 1}`} - {k.slice(0, 8)}•••
-                                        </option>
-                                    ))}
-                                </select>
                                 <button
-                                    onClick={() => setSettings(prev => ({ ...prev, savedApiKeys: [] }))}
-                                    className="px-3 py-2 rounded-xl text-xs font-bold border border-gray-200 text-gray-500 hover:bg-gray-50 active:scale-95 transition"
+                                    onClick={() => {
+                                        const newKey = (settings.userApiKey || '').trim();
+                                        if (!newKey) return;
+                                        setSettings(prev => {
+                                            const next = prev.savedApiKeys || [];
+                                            if (next.includes(newKey)) return prev;
+                                            return { ...prev, savedApiKeys: [...next, newKey] };
+                                        });
+                                    }}
+                                    className="px-3 py-1 rounded-lg text-xs font-bold border border-indigo-200 text-indigo-600 hover:bg-indigo-50 active:scale-95 transition"
                                 >
-                                    전체 비우기
+                                    현재 키 추가
                                 </button>
                             </div>
+                            <div className="space-y-2">
+                                {(settings.savedApiKeys || []).length === 0 && (
+                                    <div className="text-xs text-gray-400 border border-dashed border-gray-200 rounded-lg px-3 py-2">
+                                        추가 버튼을 눌러 슬롯을 만들면 여기에 목록이 표시됩니다.
+                                    </div>
+                                )}
+                                <div className="space-y-2">
+                                    {(settings.savedApiKeys || []).map((k, idx) => {
+                                        const label = `슬롯 ${idx + 1}`;
+                                        const masked = `${k.slice(0, 4)}••••`;
+                                        return (
+                                            <div key={`${k}-${idx}`} className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2">
+                                                <div className="flex-1">
+                                                    <div className="text-xs font-bold text-gray-700">{label}</div>
+                                                    <div className="text-[11px] text-gray-400">{masked}</div>
+                                                </div>
+                                                <button
+                                                    onClick={() => setSettings(prev => ({ ...prev, userApiKey: k }))}
+                                                    className="px-3 py-1 rounded-lg text-xs font-bold border border-indigo-200 text-indigo-600 hover:bg-indigo-50 active:scale-95 transition"
+                                                >
+                                                    사용
+                                                </button>
+                                                <button
+                                                    onClick={() => setSettings(prev => ({
+                                                        ...prev,
+                                                        savedApiKeys: (prev.savedApiKeys || []).filter((_, i) => i !== idx)
+                                                    }))}
+                                                    className="px-2 py-1 rounded-lg text-[11px] font-bold border border-red-200 text-red-500 hover:bg-red-50 active:scale-95 transition"
+                                                >
+                                                    삭제
+                                                </button>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                {(settings.savedApiKeys || []).length > 0 && (
+                                    <button
+                                        onClick={() => setSettings(prev => ({ ...prev, savedApiKeys: [] }))}
+                                        className="w-full px-3 py-2 rounded-xl text-xs font-bold border border-gray-200 text-gray-500 hover:bg-gray-50 active:scale-95 transition"
+                                    >
+                                        전체 비우기
+                                    </button>
+                                )}
+                            </div>
                             <p className="text-[10px] text-gray-400 leading-relaxed">
-                                키는 로컬에만 저장됩니다. 슬롯에서 선택하면 즉시 입력란으로 적용됩니다.
+                                키는 로컬에만 저장됩니다. 슬롯에서 “사용”을 누르면 즉시 적용됩니다.
                             </p>
                         </div>
                     </div>

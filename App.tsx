@@ -357,31 +357,20 @@ export default function App() {
   const [editTranslatedText, setEditTranslatedText] = useState('');
 
   const startEditing = useCallback((item: ConversationItem) => {
-    setEditingItemId(item.id);
-    setEditOriginalText(item.original);
-    setEditTranslatedText(item.translated);
-  }, []);
 
-  const handleSaveEditAction = useCallback((id: string) => {
+  const handleSaveEditLocal = useCallback((id: string) => {
     handleSaveEdit(id, editOriginalText, editTranslatedText);
     setEditingItemId(null);
-  }, [editOriginalText, editTranslatedText, handleSaveEdit]);
+  }, [editOriginalText, editTranslatedText, handleSaveEdit, setEditingItemId]);
 
   const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text).then(() => {
-    }).catch(err => {
-      console.error('Failed to copy text: ', err);
-    });
+    navigator.clipboard.writeText(text).catch(err => console.error('Failed to copy text: ', err));
   };
 
   const handleSwapLanguages = useCallback(() => {
     const prevInput = langInputRef.current;
     const prevOutput = langOutputRef.current;
 
-    // If input is 'auto', we swap output to input, but what becomes output?
-    // User probably wants to reverse the current flow.
-    // If input was 'auto', and output was 'ko', swapping means input='ko' and output='en' (fallback)
-    // or just swap them directly if input isn't 'auto'.
     if (prevInput.code === 'auto') {
       setLangInput(prevOutput);
       const fallbackTo = prevOutput.code === 'ko' ? SUPPORTED_LANGUAGES.find(l => l.code === 'en')! : SUPPORTED_LANGUAGES.find(l => l.code === 'ko')!;
@@ -392,87 +381,20 @@ export default function App() {
     }
   }, []);
 
-  // const exportMenuRef = useRef<HTMLDivElement>(null); // Moved to useExport
-  const profileMenuRef = useRef<HTMLDivElement>(null);
-  const notificationMenuRef = useRef<HTMLDivElement>(null);
+  const joinRoomWithReset = useCallback(async (targetRoomId: string) => {
+    await joinRoom(targetRoomId);
+    setHistory([]);
+    setCurrentTurnText('');
+  }, [joinRoom]);
 
-  const unreadVisionCount = visionNotifications.filter((n) => !n.isRead).length;
-
-  const handleLoadMoreHistory = () => {
-    const nextLimit = Math.min(historyRenderLimit + HISTORY_RENDER_STEP, history.length);
-    if (nextLimit === historyRenderLimit) return;
-    if (historyRef.current) {
-      pendingHistoryExpandRef.current = {
-        prevScrollHeight: historyRef.current.scrollHeight,
-        prevScrollTop: historyRef.current.scrollTop,
-      };
-    }
-    setHistoryRenderLimit(nextLimit);
-  };
-
-  const handleNewConversationAction = useCallback(() => {
-    if (history.length === 0) {
-      handleNewConversation();
-      return;
-    }
-
-    const confirmMsg = uiLangCode === 'ko'
-      ? '현재 대화를 저장하고 새로운 대화를 시작하시겠습니까?'
-      : 'Would you like to save the current conversation and start a new one?';
-
-    if (window.confirm(confirmMsg)) {
-      // The saving logic is already handled by the auto-sync in useConversationHistory
-      handleNewConversation();
+  const createRoomWithReset = useCallback(async () => {
+    const created = await createRoom();
+    if (created) {
+      setHistory([]);
       setCurrentTurnText('');
-      setLangInput(SUPPORTED_LANGUAGES[0]); // Reset to Auto
-      setLangOutput(SUPPORTED_LANGUAGES.find(l => l.code === 'vi') || SUPPORTED_LANGUAGES[1]); // Reset to Vietnamese
-      enqueueToast(uiLangCode === 'ko' ? '새 대화가 시작되었습니다.' : 'New conversation started.', 'success');
     }
-  }, [history, handleNewConversation, uiLangCode, enqueueToast]);
-
-  const handleSummarize = async () => {
-    if (history.length < 2) {
-      alert("대화 내용이 너무 적어 요약할 수 없습니다.");
-      return;
-    }
-    setIsSummaryModalOpen(true);
-    setIsSummarizing(true);
-    try {
-      const historyText = history.map(h => `${h.original}\n${h.translated}`).join('\n\n');
-      const data = await postApi<{ summary: string }>('summarize', {
-        history: historyText,
-        lang: uiLangCode
-      });
-      setSummaryText(data.summary);
-    } catch (e) {
-      console.error(e);
-      setSummaryText("요약에 실패했습니다. 잠시 후 다시 시도해 주세요.");
-    } finally {
-      setIsSummarizing(false);
-    }
-  };
-
-  const handleOpenSettingsAction = () => {
-    setIsProfileMenuOpen(false);
-    setIsSettingsModalOpen(true);
-  };
-
-  const handleClearLocalSessionsAction = () => {
-    clearCachedAudio();
-    handleClearSessions();
-  };
-
-  const handleLoadSessionFromLocal = () => {
-    if (!selectedLocalSessionId) return;
-    const target = sessions.find(s => s.id === selectedLocalSessionId);
-    if (target) {
-      loadSession(target);
-      setIsHistoryModalOpen(false);
-    }
-  };
-
-  useEffect(() => {
-    langInputRef.current = langInput;
+    return created;
+  }, [createRoom]);
   }, [langInput]);
 
   useEffect(() => {

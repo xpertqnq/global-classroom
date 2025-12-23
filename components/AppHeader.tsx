@@ -1,5 +1,6 @@
 import React from 'react';
-import { GoogleLogo, ExportIcon, SparklesIcon, SpeakerIcon } from './Icons';
+import { BrandLogo } from './BrandLogo';
+import { ExportIcon, SparklesIcon, SpeakerIcon } from './Icons';
 import { VoiceOption, TranslationMap } from '../types';
 import { VOICE_OPTIONS, SUPPORTED_LANGUAGES } from '../constants';
 
@@ -56,12 +57,10 @@ const AppHeader: React.FC<AppHeaderProps> = ({
         <header className="bg-white/80 backdrop-blur-md px-3 py-1.5 shadow-sm z-40 border-b border-gray-100 shrink-0">
             <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-xl flex items-center justify-center shadow-indigo-200 shadow-lg transform -rotate-3 hover:rotate-0 hover:shadow-lg hover:scale-110 transition-all cursor-pointer hover:brightness-105" title="Global Class Home">
-                        <GoogleLogo />
-                    </div>
+                    <BrandLogo />
                     <div className="min-w-0 cursor-pointer group transition-all" title="실시간 AI 통역 서비스">
-                        <h1 className="text-lg font-black text-gray-900 tracking-tight leading-none uppercase italic group-hover:text-indigo-600 transition-colors">{t.appTitle}</h1>
-                        <p className="text-[10px] text-gray-400 font-bold tracking-widest mt-0.5 group-hover:text-indigo-400 transition-colors">{t.subtitle}</p>
+                        <h1 className="text-xl font-black text-gray-900 tracking-tight leading-none uppercase group-hover:text-indigo-600 transition-colors">{t.appTitle}</h1>
+                        <p className="text-[10px] text-gray-400 font-bold tracking-widest mt-1 uppercase group-hover:text-indigo-400 transition-colors">{t.subtitle}</p>
                     </div>
                 </div>
 

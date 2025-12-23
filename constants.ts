@@ -130,7 +130,7 @@ export const TRANSLATIONS: Record<string, TranslationMap> = {
   },
   en: {
     appTitle: "Global Classroom",
-    subtitle: "AI Live Interpreter",
+    subtitle: "실시간 AI 통역 노트",
     inputLang: "Input",
     outputLang: "Output",
     autoPlay: "Auto Read",
@@ -189,7 +189,7 @@ export const TRANSLATIONS: Record<string, TranslationMap> = {
   },
   ja: {
     appTitle: "グローバル教室",
-    subtitle: "AIリアルタイム通訳",
+    subtitle: "リアルタイムAI通訳ノート",
     inputLang: "入力",
     outputLang: "出力",
     autoPlay: "自動再生",
@@ -248,7 +248,7 @@ export const TRANSLATIONS: Record<string, TranslationMap> = {
   },
   zh: {
     appTitle: "全球课堂",
-    subtitle: "AI 实时翻译",
+    subtitle: "实时AI口译笔记",
     inputLang: "输入",
     outputLang: "输出",
     autoPlay: "自动朗读",
@@ -307,7 +307,7 @@ export const TRANSLATIONS: Record<string, TranslationMap> = {
   },
   vi: {
     appTitle: "Lớp Học Toàn Cầu",
-    subtitle: "Phiên dịch AI",
+    subtitle: "Ghi chú phiên dịch AI thời gian thực",
     inputLang: "Đầu vào",
     outputLang: "Đầu ra",
     autoPlay: "Tự động đọc",
@@ -366,7 +366,7 @@ export const TRANSLATIONS: Record<string, TranslationMap> = {
   },
   es: {
     appTitle: "Clase Global",
-    subtitle: "Intérprete IA",
+    subtitle: "Notas de interpretación AI en tiempo real",
     inputLang: "Entrada",
     outputLang: "Salida",
     autoPlay: "Auto Leer",
@@ -425,7 +425,7 @@ export const TRANSLATIONS: Record<string, TranslationMap> = {
   },
   fr: {
     appTitle: "Classe Mondiale",
-    subtitle: "Interprète AI Live",
+    subtitle: "Notes d'interprétation AI en temps réel",
     inputLang: "Entrée",
     outputLang: "Sortie",
     autoPlay: "Lecture Auto",
@@ -484,7 +484,7 @@ export const TRANSLATIONS: Record<string, TranslationMap> = {
   },
   de: {
     appTitle: "Globale Klasse",
-    subtitle: "KI-Live-Dolmetscher",
+    subtitle: "Echtzeit-KI-Dolmetschernotizen",
     inputLang: "Eingang",
     outputLang: "Ausgang",
     autoPlay: "Auto-Wiedergabe",
@@ -543,7 +543,7 @@ export const TRANSLATIONS: Record<string, TranslationMap> = {
   },
   ru: {
     appTitle: "Глобальный класс",
-    subtitle: "Живой AI переводчик",
+    subtitle: "Заметки синхронного AI-перевода",
     inputLang: "Ввод",
     outputLang: "Вывод",
     autoPlay: "Авточтение",

@@ -56,11 +56,15 @@ export const handler = async (event: any) => {
   let lastErrorDetail: any = null;
   let lastErrorRaw: any = null;
 
-  // 요청된 모델을 최우선 시도 후, 기본 폴백 순회
+  // 항상 flash-lite 우선 사용 (무료 쿼터가 가장 많음)
+  // 클라이언트 요청 모델은 마지막 폴백으로만 사용
   const requestedModel = typeof body.model === 'string' && body.model.trim() ? body.model.trim() : null;
-  const modelPriority = requestedModel
-    ? [requestedModel, ...FALLBACK_MODELS.filter(m => m !== requestedModel)]
-    : FALLBACK_MODELS;
+  const modelPriority = [
+    'gemini-2.5-flash-lite',  // 항상 1순위
+    'gemini-2.0-flash',       // 항상 2순위
+    ...(requestedModel && !FALLBACK_MODELS.includes(requestedModel) ? [requestedModel] : []),
+    'gemini-2.5-flash',       // 마지막 폴백
+  ];
 
   // 폴백 모델 순회
   for (const model of modelPriority) {

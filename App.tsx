@@ -147,16 +147,25 @@ export default function App() {
   const [settings, setSettings] = useState<AppSettings>(() => {
     try {
       const raw = localStorage.getItem(SETTINGS_KEY);
-      if (!raw) return { driveBackupMode: 'manual', audioCacheEnabled: true, recordOriginalEnabled: true, userApiKey: '' };
+      if (!raw) return { driveBackupMode: 'manual', audioCacheEnabled: true, recordOriginalEnabled: true, userApiKey: '', translationModel: DEFAULT_TRANSLATION_MODEL };
       const parsed = JSON.parse(raw) as Partial<AppSettings>;
+
+      // 마이그레이션: gemini-2.5-flash 사용자는 flash-lite로 강제 이동 (무료 쿼터 소진 방지)
+      let migratedModel = parsed.translationModel;
+      if (migratedModel === 'gemini-2.5-flash') {
+        migratedModel = DEFAULT_TRANSLATION_MODEL; // gemini-2.5-flash-lite
+        console.log('[Settings Migration] Upgraded translationModel from gemini-2.5-flash to flash-lite');
+      }
+
       return {
         driveBackupMode: parsed.driveBackupMode === 'auto' ? 'auto' : 'manual',
         audioCacheEnabled: typeof parsed.audioCacheEnabled === 'boolean' ? parsed.audioCacheEnabled : true,
         recordOriginalEnabled: typeof parsed.recordOriginalEnabled === 'boolean' ? parsed.recordOriginalEnabled : true,
         userApiKey: typeof parsed.userApiKey === 'string' ? parsed.userApiKey : '',
+        translationModel: migratedModel || DEFAULT_TRANSLATION_MODEL,
       };
     } catch {
-      return { driveBackupMode: 'manual', audioCacheEnabled: true, recordOriginalEnabled: true, userApiKey: '' };
+      return { driveBackupMode: 'manual', audioCacheEnabled: true, recordOriginalEnabled: true, userApiKey: '', translationModel: DEFAULT_TRANSLATION_MODEL };
     }
   });
 

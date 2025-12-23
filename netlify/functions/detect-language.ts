@@ -3,11 +3,10 @@ import { GoogleGenAI, Type } from '@google/genai';
 const SUPPORTED_CODES = ['ko', 'en', 'ja', 'zh', 'vi', 'es', 'fr', 'de', 'ru', 'th', 'id', 'ar', 'hi', 'tl', 'mn', 'uz'] as const;
 type SupportedCode = (typeof SUPPORTED_CODES)[number];
 
-// 모델 우선순위 (무료 제한량 많은 순서) - 항상 flash-lite 우선
+// 모델 우선순위 (무료 제한량 많은 순서) - gemini-2.5-flash는 제외 (25 RPD 너무 적음)
 const FALLBACK_MODELS = [
-  'gemini-2.5-flash-lite',  // 항상 1순위: 1000-1500 RPD
-  'gemini-2.0-flash',       // 항상 2순위: GA 안정 버전  
-  'gemini-2.5-flash',       // 마지막 폴백: 20-25 RPD
+  'gemini-2.5-flash-lite',  // 항상 1순위: 1000+ RPD
+  'gemini-2.0-flash',       // 항상 2순위: 1500 RPD, GA 안정 버전
 ];
 
 export const handler = async (event: any) => {

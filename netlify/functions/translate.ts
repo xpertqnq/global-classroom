@@ -2,9 +2,8 @@ import { GoogleGenAI } from '@google/genai';
 
 // 모델 우선순위 (무료 제한량 많은 순서)
 const FALLBACK_MODELS = [
-  'gemini-2.5-flash-lite',  // 1순위: 1000-1500 RPD
-  'gemini-2.0-flash',       // 2순위: GA 안정 버전
-  'gemini-2.5-flash',       // 3순위: 20-25 RPD
+  'gemini-2.5-flash-lite',  // 1순위: 1000+ RPD
+  'gemini-2.0-flash',       // 2순위: 1500 RPD, GA 안정 버전
 ];
 
 export const handler = async (event: any) => {
@@ -57,13 +56,10 @@ export const handler = async (event: any) => {
   let lastErrorRaw: any = null;
 
   // 항상 flash-lite 우선 사용 (무료 쿼터가 가장 많음)
-  // 클라이언트 요청 모델은 마지막 폴백으로만 사용
-  const requestedModel = typeof body.model === 'string' && body.model.trim() ? body.model.trim() : null;
+  // 클라이언트 요청 모델은 무시 (gemini-2.5-flash는 쿼터 너무 작음)
   const modelPriority = [
-    'gemini-2.5-flash-lite',  // 항상 1순위
-    'gemini-2.0-flash',       // 항상 2순위
-    ...(requestedModel && !FALLBACK_MODELS.includes(requestedModel) ? [requestedModel] : []),
-    'gemini-2.5-flash',       // 마지막 폴백
+    'gemini-2.5-flash-lite',  // 항상 1순위: 1000+ RPD
+    'gemini-2.0-flash',       // 항상 2순위: 1500 RPD
   ];
 
   // 폴백 모델 순회

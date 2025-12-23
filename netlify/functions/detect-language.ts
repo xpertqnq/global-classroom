@@ -29,9 +29,13 @@ export const handler = async (event: any) => {
     };
   }
 
+  // 요청 본문 파싱 (base64 인코딩 여부도 대비)
   let body: any = {};
   try {
-    body = event.body ? JSON.parse(event.body) : {};
+    const raw = event.isBase64Encoded
+      ? Buffer.from(event.body || '', 'base64').toString('utf-8')
+      : event.body || '';
+    body = raw ? JSON.parse(raw) : {};
   } catch (err) {
     console.error('detect-language: failed to parse body', err);
     body = {};
@@ -49,6 +53,8 @@ export const handler = async (event: any) => {
   const ai = new GoogleGenAI({ apiKey });
   let lastError: any = null;
   let lastErrorStatus: any = null;
+  let lastErrorDetail: any = null;
+  let lastErrorRaw: any = null;
 
   const prompt = `Detect the language of the following text.
 Return JSON only.
@@ -94,7 +100,19 @@ Text: ${JSON.stringify(text)}`;
     } catch (error: any) {
       lastError = error;
       lastErrorStatus = error?.status || error?.response?.status;
-      console.error(`detect-language: model ${model} failed`, error);
+      lastErrorDetail = error?.response?.data || error?.response || error?.message;
+      try {
+        lastErrorRaw = JSON.stringify(error, Object.getOwnPropertyNames(error));
+      } catch {
+        lastErrorRaw = String(error);
+      }
+      console.error(`detect-language: model ${model} failed`, {
+        status: lastErrorStatus,
+        message: error?.message,
+        data: error?.response?.data,
+        full: error,
+      });
+      console.error('detect-language: raw error string', lastErrorRaw);
       // 429 (Rate Limit) 또는 503인 경우 다음 모델 시도
       const status = error?.status || error?.response?.status;
       if (status === 429 || status === 503 || error?.message?.includes('429') || error?.message?.includes('RESOURCE_EXHAUSTED')) {
@@ -111,8 +129,9 @@ Text: ${JSON.stringify(text)}`;
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       error: '언어 감지에 실패했습니다. 모든 모델의 제한량이 소진되었거나 오류가 발생했습니다.',
-      detail: lastError?.message || String(lastError),
+      detail: lastErrorDetail || lastError?.message || String(lastError),
       status: lastErrorStatus,
+      raw: lastErrorRaw,
     }),
   };
 };

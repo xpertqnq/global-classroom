@@ -1,12 +1,19 @@
 import { GoogleGenAI, Type } from '@google/genai';
+import Groq from 'groq-sdk';
 
 const SUPPORTED_CODES = ['ko', 'en', 'ja', 'zh', 'vi', 'es', 'fr', 'de', 'ru', 'th', 'id', 'ar', 'hi', 'tl', 'mn', 'uz'] as const;
 type SupportedCode = (typeof SUPPORTED_CODES)[number];
 
-// 모델 우선순위 (무료 제한량 많은 순서) - gemini-2.5-flash는 제외 (25 RPD 너무 적음)
-const FALLBACK_MODELS = [
-  'gemini-2.5-flash-lite',  // 항상 1순위: 1000+ RPD
-  'gemini-2.0-flash',       // 항상 2순위: 1500 RPD, GA 안정 버전
+// Gemini 모델 우선순위 (무료 제한량 많은 순서)
+const GEMINI_MODELS = [
+  'gemini-2.5-flash-lite',  // 1순위: 1000+ RPD
+  'gemini-2.0-flash',       // 2순위: 1500 RPD
+];
+
+// Groq 모델 우선순위 (Gemini 소진 시 폴백)
+const GROQ_MODELS = [
+  'llama-3.3-70b-versatile', // 3순위: 1000 RPD, 70B 고품질
+  'llama-3.1-8b-instant',    // 4순위: 14,400 RPD, 8B 비상용
 ];
 
 export const handler = async (event: any) => {
@@ -19,8 +26,10 @@ export const handler = async (event: any) => {
   }
 
   const userApiKey = event.headers['x-user-api-key'];
-  const apiKey = userApiKey || process.env.GEMINI_API_KEY || process.env.API_KEY;
-  if (!apiKey) {
+  const geminiApiKey = userApiKey || process.env.GEMINI_API_KEY || process.env.API_KEY;
+  const groqApiKey = process.env.GROQ_API_KEY;
+
+  if (!geminiApiKey && !groqApiKey) {
     return {
       statusCode: 500,
       headers: { 'Content-Type': 'application/json' },
@@ -28,7 +37,7 @@ export const handler = async (event: any) => {
     };
   }
 
-  // 요청 본문 파싱 (base64 인코딩 여부도 대비)
+  // 요청 본문 파싱
   let body: any = {};
   try {
     const raw = event.isBase64Encoded
@@ -49,77 +58,112 @@ export const handler = async (event: any) => {
     };
   }
 
-  const ai = new GoogleGenAI({ apiKey });
   let lastError: any = null;
-  let lastErrorStatus: any = null;
   let lastErrorDetail: any = null;
-  let lastErrorRaw: any = null;
 
   const prompt = `Detect the language of the following text.
-Return JSON only.
+Return JSON only: {"code": "xx", "confidence": 0.95}
 Rules:
 - code must be one of: ${SUPPORTED_CODES.join(', ')}
 - confidence must be a number between 0 and 1.
 Text: ${JSON.stringify(text)}`;
 
-  // 폴백 모델 순회
-  for (const model of FALLBACK_MODELS) {
-    try {
-      const response = await ai.models.generateContent({
-        model,
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        config: {
-          responseMimeType: 'application/json',
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              code: { type: Type.STRING },
-              confidence: { type: Type.NUMBER },
+  // 1단계: Gemini 모델 시도
+  if (geminiApiKey) {
+    const ai = new GoogleGenAI({ apiKey: geminiApiKey });
+    for (const model of GEMINI_MODELS) {
+      try {
+        const response = await ai.models.generateContent({
+          model,
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          config: {
+            responseMimeType: 'application/json',
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                code: { type: Type.STRING },
+                confidence: { type: Type.NUMBER },
+              },
+              required: ['code', 'confidence'],
             },
-            required: ['code', 'confidence'],
           },
-        },
-      });
+        });
 
-      let parsed: any = {};
+        let parsed: any = {};
+        try {
+          parsed = response.text ? JSON.parse(response.text) : {};
+        } catch { /* ignore */ }
+
+        const code = SUPPORTED_CODES.includes((parsed.code as any) ?? '') ? (parsed.code as SupportedCode) : 'en';
+        const confidence = typeof parsed.confidence === 'number' ? parsed.confidence : 0;
+
+        return {
+          statusCode: 200,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code, confidence, model, provider: 'gemini' }),
+        };
+      } catch (error: any) {
+        lastError = error;
+        lastErrorDetail = error?.message || String(error);
+        console.error(`detect-language: Gemini ${model} failed:`, error?.message);
+
+        const isRateLimit = error?.message?.includes('429') ||
+          error?.message?.includes('RESOURCE_EXHAUSTED') ||
+          error?.status === 429;
+        if (isRateLimit) {
+          console.log(`Gemini ${model} rate limited, trying next...`);
+          continue;
+        }
+        break;
+      }
+    }
+  }
+
+  // 2단계: Groq 모델 시도 (Gemini 실패 시)
+  if (groqApiKey) {
+    const groq = new Groq({ apiKey: groqApiKey });
+    for (const model of GROQ_MODELS) {
       try {
-        parsed = response.text ? JSON.parse(response.text) : {};
-      } catch (e) {
-        console.error(`detect-language: JSON parse failed for model ${model}`, e, response.text);
-      }
+        const response = await groq.chat.completions.create({
+          model,
+          messages: [{
+            role: 'user',
+            content: prompt,
+          }],
+          temperature: 0.1,
+          max_tokens: 100,
+        });
 
-      const code = SUPPORTED_CODES.includes((parsed.code as any) ?? '') ? (parsed.code as SupportedCode) : 'en';
-      const confidence = typeof parsed.confidence === 'number' ? parsed.confidence : 0;
+        const content = response.choices?.[0]?.message?.content?.trim() || '{}';
+        let parsed: any = {};
+        try {
+          // JSON 추출 시도
+          const jsonMatch = content.match(/\{[\s\S]*\}/);
+          parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : {};
+        } catch { /* ignore */ }
 
-      return {
-        statusCode: 200,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code, confidence, model }),
-      };
-    } catch (error: any) {
-      lastError = error;
-      lastErrorStatus = error?.status || error?.response?.status;
-      lastErrorDetail = error?.response?.data || error?.response || error?.message;
-      try {
-        lastErrorRaw = JSON.stringify(error, Object.getOwnPropertyNames(error));
-      } catch {
-        lastErrorRaw = String(error);
+        const code = SUPPORTED_CODES.includes((parsed.code as any) ?? '') ? (parsed.code as SupportedCode) : 'en';
+        const confidence = typeof parsed.confidence === 'number' ? parsed.confidence : 0.5;
+
+        return {
+          statusCode: 200,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code, confidence, model, provider: 'groq' }),
+        };
+      } catch (error: any) {
+        lastError = error;
+        lastErrorDetail = error?.message || String(error);
+        console.error(`detect-language: Groq ${model} failed:`, error?.message);
+
+        const isRateLimit = error?.message?.includes('429') ||
+          error?.message?.includes('rate_limit') ||
+          error?.status === 429;
+        if (isRateLimit) {
+          console.log(`Groq ${model} rate limited, trying next...`);
+          continue;
+        }
+        break;
       }
-      console.error(`detect-language: model ${model} failed`, {
-        status: lastErrorStatus,
-        message: error?.message,
-        data: error?.response?.data,
-        full: error,
-      });
-      console.error('detect-language: raw error string', lastErrorRaw);
-      // 429 (Rate Limit) 또는 503인 경우 다음 모델 시도
-      const status = error?.status || error?.response?.status;
-      if (status === 429 || status === 503 || error?.message?.includes('429') || error?.message?.includes('RESOURCE_EXHAUSTED')) {
-        console.log(`Model ${model} rate limited, trying next...`);
-        continue;
-      }
-      // 다른 에러는 즉시 반환
-      break;
     }
   }
 
@@ -127,10 +171,8 @@ Text: ${JSON.stringify(text)}`;
     statusCode: 500,
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      error: '언어 감지에 실패했습니다. 모든 모델의 제한량이 소진되었거나 오류가 발생했습니다.',
-      detail: lastErrorDetail || lastError?.message || String(lastError),
-      status: lastErrorStatus,
-      raw: lastErrorRaw,
+      error: '언어 감지에 실패했습니다. 모든 모델의 제한량이 소진되었습니다.',
+      detail: lastErrorDetail || String(lastError),
     }),
   };
 };

@@ -179,7 +179,19 @@ export default function App() {
     setHistory,
     isAutoPlay,
     playTTS: (text, id) => playTTS(text, id),
-    MODEL_TRANSLATE: settings.translationModel || DEFAULT_TRANSLATION_MODEL
+    MODEL_TRANSLATE: settings.translationModel || DEFAULT_TRANSLATION_MODEL,
+    onQuotaExhausted: (detail?: string) => {
+      enqueueToast(
+        uiLangCode === 'ko'
+          ? '기본 번역 키의 무료 쿼터를 모두 사용했습니다. 개인 키 설정 또는 로그인 후 다시 시도해 주세요.'
+          : 'Free quota for default translation key is exhausted. Please set your own API key or sign in, then try again.',
+        'warning',
+        6000
+      );
+      if (detail) {
+        console.warn('Quota exhausted detail:', detail);
+      }
+    }
   });
 
   // --- Live Sharing ---

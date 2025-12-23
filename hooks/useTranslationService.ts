@@ -8,6 +8,7 @@ interface UseTranslationServiceProps {
     isAutoPlay: boolean;
     playTTS: (text: string, id: string) => void;
     MODEL_TRANSLATE: string;
+    onQuotaExhausted?: (detail?: string) => void;
 }
 
 export function useTranslationService({
@@ -15,7 +16,8 @@ export function useTranslationService({
     setHistory,
     isAutoPlay,
     playTTS,
-    MODEL_TRANSLATE
+    MODEL_TRANSLATE,
+    onQuotaExhausted
 }: UseTranslationServiceProps) {
     const pendingIdsRef = useRef<Set<string>>(new Set());
 
@@ -93,8 +95,19 @@ export function useTranslationService({
             if (isAutoPlay && translated) {
                 playTTS(translated, id);
             }
-        } catch (err) {
+        } catch (err: any) {
             console.error("Translation failed:", err);
+            const msg = typeof err?.message === 'string' ? err.message : '';
+            const detail = typeof err?.detail === 'string' ? err.detail : '';
+            const combined = `${msg} ${detail}`.trim();
+            const isQuota =
+                msg.includes('429') ||
+                msg.includes('RESOURCE_EXHAUSTED') ||
+                detail.includes('429') ||
+                detail.includes('RESOURCE_EXHAUSTED');
+            if (isQuota && onQuotaExhausted) {
+                onQuotaExhausted(combined);
+            }
             setHistory(prev => prev.map(item =>
                 item.id === id ? { ...item, translated: "번역 오류", isTranslating: false } : item
             ));

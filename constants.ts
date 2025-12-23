@@ -70,8 +70,8 @@ export const DEFAULT_TRANSLATION_MODEL = 'gemini-2.5-flash-lite';
 
 export const TRANSLATIONS: Record<string, TranslationMap> = {
   ko: {
-    appTitle: "EchoSphere",
-    subtitle: "Real-time AI Audio Notes",
+    appTitle: "Global Classroom",
+    subtitle: "실시간 AI 통역 노트",
     inputLang: "입력 언어",
     outputLang: "출력 언어",
     autoPlay: "자동 읽기",
@@ -129,7 +129,7 @@ export const TRANSLATIONS: Record<string, TranslationMap> = {
     mobileTipDesc: "하단 고정 버튼으로 한 손 조작, 세로 모드 최적화",
   },
   en: {
-    appTitle: "EchoSphere",
+    appTitle: "Global Classroom",
     subtitle: "AI Live Interpreter",
     inputLang: "Input",
     outputLang: "Output",
@@ -188,7 +188,7 @@ export const TRANSLATIONS: Record<string, TranslationMap> = {
     mobileTipDesc: "Optimized for one-handed operation and portrait mode.",
   },
   ja: {
-    appTitle: "EchoSphere",
+    appTitle: "グローバル教室",
     subtitle: "AIリアルタイム通訳",
     inputLang: "入力",
     outputLang: "出力",
@@ -247,7 +247,7 @@ export const TRANSLATIONS: Record<string, TranslationMap> = {
     mobileTipDesc: "片手操作と縦向きモードに最適化されています。",
   },
   zh: {
-    appTitle: "EchoSphere",
+    appTitle: "全球课堂",
     subtitle: "AI 实时翻译",
     inputLang: "输入",
     outputLang: "输出",
@@ -306,7 +306,7 @@ export const TRANSLATIONS: Record<string, TranslationMap> = {
     mobileTipDesc: "针对单手操作和竖屏模式进行了优化。",
   },
   vi: {
-    appTitle: "EchoSphere",
+    appTitle: "Lớp Học Toàn Cầu",
     subtitle: "Phiên dịch AI",
     inputLang: "Đầu vào",
     outputLang: "Đầu ra",
@@ -365,7 +365,7 @@ export const TRANSLATIONS: Record<string, TranslationMap> = {
     mobileTipDesc: "Tối ưu cho thao tác một tay, chế độ chân dung.",
   },
   es: {
-    appTitle: "EchoSphere",
+    appTitle: "Clase Global",
     subtitle: "Intérprete IA",
     inputLang: "Entrada",
     outputLang: "Salida",
@@ -424,7 +424,7 @@ export const TRANSLATIONS: Record<string, TranslationMap> = {
     mobileTipDesc: "Optimizado para uso con una mano y modo vertical.",
   },
   fr: {
-    appTitle: "EchoSphere",
+    appTitle: "Classe Mondiale",
     subtitle: "Interprète AI Live",
     inputLang: "Entrée",
     outputLang: "Sortie",
@@ -483,7 +483,7 @@ export const TRANSLATIONS: Record<string, TranslationMap> = {
     mobileTipDesc: "Optimisé pour une utilisation à une main.",
   },
   de: {
-    appTitle: "EchoSphere",
+    appTitle: "Globale Klasse",
     subtitle: "KI-Live-Dolmetscher",
     inputLang: "Eingang",
     outputLang: "Ausgang",
@@ -542,7 +542,7 @@ export const TRANSLATIONS: Record<string, TranslationMap> = {
     mobileTipDesc: "Optimiert für einhändige Bedienung.",
   },
   ru: {
-    appTitle: "EchoSphere",
+    appTitle: "Глобальный класс",
     subtitle: "Живой AI переводчик",
     inputLang: "Ввод",
     outputLang: "Вывод",

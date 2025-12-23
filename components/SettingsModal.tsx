@@ -64,7 +64,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
 
                     {/* Drive 백업 방식 */}
                     <div className="space-y-2">
-                        <div className="text-sm font-bold text-gray-800">Drive 백업 방식</div>
+                        <div className="text-sm font-bold text-gray-800 flex items-center gap-2">
+                            <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.5l2.598 4.5H9.402L12 4.5zM4.5 19.5l2.598-4.5h7.804l2.598 4.5H4.5z" />
+                            </svg>
+                            Google Drive 백업 방식
+                        </div>
                         <div className="flex gap-2">
                             <button
                                 onClick={() => setSettings(prev => ({ ...prev, driveBackupMode: 'manual' }))}
@@ -85,11 +90,16 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                                 자동
                             </button>
                         </div>
+                        <p className="text-[10px] text-gray-400 leading-relaxed">
+                            수동: 필요할 때만 Google Drive로 백업합니다. 자동: 배포 코드에 있는 백업 로직이 주기적으로 Drive에 저장합니다.
+                        </p>
                     </div>
 
                     {/* 음성 캐시 */}
                     <div className="space-y-2">
-                        <div className="text-sm font-bold text-gray-800">음성 캐시(IndexedDB)</div>
+                        <div className="text-sm font-bold text-gray-800 flex items-center justify-between">
+                            <span>음성 캐시(IndexedDB)</span>
+                        </div>
                         <button
                             onClick={() => setSettings(prev => ({ ...prev, audioCacheEnabled: !prev.audioCacheEnabled }))}
                             className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all active:scale-[0.98] shadow-sm ${settings.audioCacheEnabled
@@ -100,6 +110,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                             <span className="text-sm font-bold">사용</span>
                             <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${settings.audioCacheEnabled ? 'bg-white/20' : 'bg-gray-100 text-gray-400'}`}>{settings.audioCacheEnabled ? 'ON' : 'OFF'}</span>
                         </button>
+                        <p className="text-[10px] text-gray-400 leading-relaxed">
+                            음성 캐시를 켜면 생성된 음성/PCM 데이터를 브라우저 IndexedDB에 임시 저장해 재생을 빠르게 합니다. 저장 공간이 늘면 끄고 캐시를 비워주세요.
+                        </p>
                     </div>
 
                     {/* 개인 API 키 */}
@@ -164,16 +177,22 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                                                     <div className="text-[11px] text-gray-400">{masked}</div>
                                                 </div>
                                                 <button
-                                                    onClick={() => setSettings(prev => ({ ...prev, userApiKey: k }))}
+                                                    onClick={() => {
+                                                        if (!window.confirm(`${label} 키를 적용할까요?`)) return;
+                                                        setSettings(prev => ({ ...prev, userApiKey: k }));
+                                                    }}
                                                     className="px-3 py-1 rounded-lg text-xs font-bold border border-indigo-200 text-indigo-600 hover:bg-indigo-50 active:scale-95 transition"
                                                 >
                                                     사용
                                                 </button>
                                                 <button
-                                                    onClick={() => setSettings(prev => ({
-                                                        ...prev,
-                                                        savedApiKeys: (prev.savedApiKeys || []).filter((_, i) => i !== idx)
-                                                    }))}
+                                                    onClick={() => {
+                                                        if (!window.confirm(`${label} 키를 삭제할까요?`)) return;
+                                                        setSettings(prev => ({
+                                                            ...prev,
+                                                            savedApiKeys: (prev.savedApiKeys || []).filter((_, i) => i !== idx)
+                                                        }));
+                                                    }}
                                                     className="px-2 py-1 rounded-lg text-[11px] font-bold border border-red-200 text-red-500 hover:bg-red-50 active:scale-95 transition"
                                                 >
                                                     삭제
@@ -184,7 +203,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                                 </div>
                                 {(settings.savedApiKeys || []).length > 0 && (
                                     <button
-                                        onClick={() => setSettings(prev => ({ ...prev, savedApiKeys: [] }))}
+                                        onClick={() => {
+                                            if (!window.confirm('저장된 모든 키를 삭제할까요?')) return;
+                                            setSettings(prev => ({ ...prev, savedApiKeys: [] }));
+                                        }}
                                         className="w-full px-3 py-2 rounded-xl text-xs font-bold border border-gray-200 text-gray-500 hover:bg-gray-50 active:scale-95 transition"
                                     >
                                         전체 비우기

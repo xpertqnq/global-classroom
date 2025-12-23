@@ -56,8 +56,14 @@ export const handler = async (event: any) => {
   let lastErrorDetail: any = null;
   let lastErrorRaw: any = null;
 
+  // 요청된 모델을 최우선 시도 후, 기본 폴백 순회
+  const requestedModel = typeof body.model === 'string' && body.model.trim() ? body.model.trim() : null;
+  const modelPriority = requestedModel
+    ? [requestedModel, ...FALLBACK_MODELS.filter(m => m !== requestedModel)]
+    : FALLBACK_MODELS;
+
   // 폴백 모델 순회
-  for (const model of FALLBACK_MODELS) {
+  for (const model of modelPriority) {
     try {
       const response = await ai.models.generateContent({
         model,

@@ -11,8 +11,14 @@ self.addEventListener('install', (event) => {
 self.addEventListener('fetch', (event) => {
   const { request } = event;
 
+  // GET 이외 메서드는 캐시하지 않고 바로 네트워크로 보냄 (POST put 오류 방지)
+  if (request.method !== 'GET') {
+    event.respondWith(fetch(request));
+    return;
+  }
+
   // 내비게이션 요청 또는 HTML 요청은 네트워크 우선
-  if (request.mode === 'navigate' || (request.destination === 'document' && request.method === 'GET')) {
+  if (request.mode === 'navigate' || request.destination === 'document') {
     event.respondWith(
       fetch(request)
         .then((response) => {

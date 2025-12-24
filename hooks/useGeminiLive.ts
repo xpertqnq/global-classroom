@@ -73,6 +73,21 @@ export function useGeminiLive({ langInput, onTranscriptReceived, onAudioReceived
         setIsRecordingOriginal(false);
     }, []);
 
+    // 사용자 제스처 시점에 오디오 컨텍스트를 깨워 자동재생 차단을 피함
+    const ensureAudioContext = useCallback(async () => {
+        if (!audioContextRef.current) {
+            audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+        }
+        const ctx = audioContextRef.current;
+        if (ctx.state === 'suspended') {
+            try {
+                await ctx.resume();
+            } catch (e) {
+                console.warn('AudioContext resume 실패', e);
+            }
+        }
+    }, []);
+
     const startOriginalRecording = useCallback((stream: MediaStream) => {
         if (!settings.recordOriginalEnabled) return;
         try {
@@ -386,13 +401,14 @@ export function useGeminiLive({ langInput, onTranscriptReceived, onAudioReceived
         status,
         isMicOn,
         errorMessage,
-        setErrorMessage,
         analyser,
         isRecordingOriginal,
         connectToGemini,
         toggleMic,
         cleanupAudio,
         playPCM,
-        stopPCM
+        stopPCM,
+        ensureAudioContext,
+        setErrorMessage
     };
 }

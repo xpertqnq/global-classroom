@@ -279,6 +279,7 @@ export default function App() {
     cleanupAudio,
     playPCM,
     stopPCM,
+    ensureAudioContext,
     setErrorMessage
   } = useGeminiLive({
     langInput,
@@ -305,6 +306,16 @@ export default function App() {
     MODEL_TTS,
     t
   });
+
+  // 자동 읽기 토글 시 오디오 컨텍스트를 즉시 깨워서 브라우저 자동재생 차단을 회피
+  const handleToggleAutoPlay = useCallback(async () => {
+    try {
+      await ensureAudioContext();
+    } catch (e) {
+      console.warn('ensureAudioContext 실패', e);
+    }
+    setIsAutoPlay(prev => !prev);
+  }, [ensureAudioContext]);
 
   const {
     isExportMenuOpen,
